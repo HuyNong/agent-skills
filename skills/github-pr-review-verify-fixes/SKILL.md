@@ -146,6 +146,8 @@ Verified against `<current_head_short>` (was `<prior_review_commit_short>`). <X>
 
 Two-step submission:
 
+Before publishing, list reviews by the current user on the current head and check for an existing top-level `## Follow-up Review` summary. Only that completed follow-up counts for duplicate prevention. A review record with an empty body created for a thread reply, including an author's “Fixed” response, is not a follow-up verification; continue with the independent summary and verdicts.
+
 **Step A — Top-level review (summary only, no inline comments):**
 
 Set `owner`, `repo`, `pr` and `current_head_sha` from the resolved PR. Write the summary to `body_file` inside this invocation's scratch directory. Confirm authorization covers publishing the follow-up; if it already does, continue without another prompt.
@@ -216,14 +218,14 @@ a fresh code-review workflow  ─►  github-pr-review-publish  ─►  (dev pus
 - **Never auto-loop / poll.** One-shot per invocation. User re-runs after the next commit batch.
 - **Never mark threads as Resolved.** That's a PR-author signal — explicit human action.
 - **Always reply to original threads.** Verdicts are posted as `in_reply_to` replies, not new inline comments. This eliminates anchor validation entirely.
-- **One follow-up review per skill run.** If a prior follow-up by current user already exists for THIS head SHA, ask before posting a duplicate.
+- **One follow-up review per skill run.** If a prior top-level `## Follow-up Review` summary by the current user already exists for THIS head SHA, return its URL and do not post again unless the user explicitly requests a duplicate. Reply-only review records do not count.
 
 ## Failure modes
 
 - Treating "line changed" as proof of fix → false-positive "Fixed" verdicts → review credibility destroyed.
 - Letting the LLM guess about a file it can't read → unsafe Fixed verdicts. Use Cannot Verify instead.
 - Original comment deleted by author → `in_reply_to` API returns 404. Script reports failure; finding is still covered by the top-level summary table.
-- Posting multiple follow-up reviews on the same head SHA → spam. Check `gh api /repos/{o}/{r}/pulls/{n}/reviews` for prior follow-ups before posting.
+- Posting multiple follow-up summaries on the same head SHA → spam. Check `gh api /repos/{o}/{r}/pulls/{n}/reviews` for prior top-level `## Follow-up Review` bodies before posting; ignore reply-only records for this check.
 - Promoting to APPROVE event "to be helpful" → bypasses human judgment. Forbidden by design.
 
 ## Examples
