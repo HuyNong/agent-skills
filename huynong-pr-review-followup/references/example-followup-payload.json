@@ -1,0 +1,7 @@
+{
+  "_comment": "Example follow-up review payload. Top-level summary only — per-finding verdicts are posted as thread replies via post-thread-replies.sh, not as inline comments in this payload.",
+  "commit_id": "e1f5a3b4c2d8e9a1b2c3d4e5f6a7b8c9d0e1f2a3",
+  "event": "COMMENT",
+  "body": "## Follow-up Review\n\nVerified against `e1f5a3b` (was `d987b92`). 2 new commit(s) since prior review:\n- `a1b2c3d` fix: narrow APQ probe catch + restore ReportHistoriesPage type\n- `b2c3d4e` fix: consolidate ApiReportedPhone\n\n### Status (3 findings)\n- :green_circle: **1 Fixed**\n- :yellow_circle: **1 Partial**\n- :red_circle: **0 Unaddressed**\n- :white_circle: **1 Cannot Verify**\n\n### Merge readiness\n:warning: **Cannot verify 1 item — human review needed.** All Critical/Important items addressed in code; one finding could not be verified because the file was renamed.\n\n### Summary of fixes\n| # | File | Original concern | Fix approach |\n|---|------|-----------------|-------------- |\n| 1 | `deferred-request.ts` | Bare `catch {}` swallowing retry errors | Restructured: catch wraps only JSON parse |\n| 2 | `reported-phones.query.ts` | Type-name collision | Canonical `shared-types.ts`, re-export |\n| 3 | `report-histories.query.ts` | Null upstream fabricating empty page | Cannot Verify — file renamed |",
+  "comments": []
+}

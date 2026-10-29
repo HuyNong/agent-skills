@@ -1,0 +1,25 @@
+{
+  "commit_id": "ed8e20e6ae25a7c2c36aa0e5f27816ac9469a142",
+  "event": "COMMENT",
+  "body": "## Code Review\n\nMulti-agent review of PR #220 (notifications + tabs refactor): `code-reviewer`, `type-design-analyzer`, `silent-failure-hunter`. Tabs refactor is a clear win. Notifications feature has shippable bones but two user-visible silent failures block merge.\n\n### Findings\n- 🔴 **1 Critical** — must fix before merge\n- 🟠 **1 Important** — should fix\n- 🔵 **1 Suggestion** — nice-to-have\n\n### Strengths\n- Tabs refactor unifies 5 ad-hoc implementations.\n- DOMPurify correctly applied at render boundary.\n\n### Recommendation\nFix the 1 Critical item, then ship. Estimated: 30 minutes.\n",
+  "comments": [
+    {
+      "path": "apps/bino-app/src/pages/Notifications.tsx",
+      "line": 46,
+      "side": "RIGHT",
+      "body": "![critical](https://img.shields.io/badge/Priority-Critical-red)\n\n`handleAccept` only `console.log`s then fires `toast.success(...)` — no API call. Friend request reappears on refresh while user sees a lying success toast.\n\nFix: wire to `useAcceptFriendRequest` from `features/friends/api/`, OR remove the button until the endpoint exists. No inline suggestion because the fix imports a hook from another file."
+    },
+    {
+      "path": "Packages/swift-core-logger/Sources/SCLogger/Logging.swift",
+      "line": 39,
+      "side": "RIGHT",
+      "body": "![important](https://img.shields.io/badge/Priority-Important-orange)\n\nThe documentation comment states that `isNetworkLoggingEnabled` defaults to `true`, but the implementation on line 43 initializes it to `false`. Based on the PR description and `docs/logging.md`, `false` is the intended default. Update the comment to match the implementation.\n\n```suggestion\n  /// Defaults to `false`. Flip from anywhere at runtime:\n```"
+    },
+    {
+      "path": "apps/bino-app/src/pages/Notifications.tsx",
+      "line": 102,
+      "side": "RIGHT",
+      "body": "![suggestion](https://img.shields.io/badge/Priority-Suggestion-blue)\n\nLeftover `console.log` from debugging.\n\n```suggestion\n    // (debug log removed)\n```"
+    }
+  ]
+}

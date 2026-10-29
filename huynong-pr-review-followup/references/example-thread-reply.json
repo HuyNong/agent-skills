@@ -1,0 +1,5 @@
+{
+  "_comment": "Example verdict file for post-thread-replies.sh. One file per finding in the verdicts directory.",
+  "in_reply_to": 3292080574,
+  "body": "![Fixed](https://img.shields.io/badge/Status-Fixed-brightgreen)\n\n**Re: original finding** *(severity: Important)*\n> Bare `catch {}` swallows retry-fetch errors — if `doFetch()` throws during APQ retry, error is silently eaten\n\n**Verdict:** The code is restructured so the `catch {}` now wraps **only** `clone.json()` — legitimate to ignore JSON parse failures. The APQ retry logic moved **outside** the try/catch block, so retry-fetch errors will properly propagate to the caller."
+}
