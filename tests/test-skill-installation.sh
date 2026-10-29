@@ -56,8 +56,7 @@ for base in [".agents/skills", ".claude/skills"]:
                                     cwd=project, text=True, capture_output=True, check=True)
             assert "comment_id=42\n" in result.stdout, result.stdout
 PY
-    (cd "$project" && npx --yes skills@1.7.4 remove \
-      --skill '*' -a codex claude-code -y) \
+    (cd "$project" && npx --yes skills@1.7.4 remove --skill '*' -y) \
       > "$case_root/remove.log" 2>&1 || { cat "$case_root/remove.log"; exit 1; }
     for name in "${names[@]}"; do
       [[ ! -e "$project/.agents/skills/$name" && ! -e "$project/.claude/skills/$name" ]]

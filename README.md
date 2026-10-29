@@ -33,8 +33,10 @@ Add `-g` to install across projects. The CLI manages the shared `.agents/skills/
 ```bash
 npx skills list
 npx skills update github-pr-create -p
-npx skills remove github-pr-create -a codex claude-code
+npx skills remove github-pr-create
 ```
+
+Omitting agent filters when removing a named skill cleans its shared installation and all agent links. Filtering removal to selected agents can leave the shared `.agents/skills/` copy available to other universal agents.
 
 ## Requirements
 
