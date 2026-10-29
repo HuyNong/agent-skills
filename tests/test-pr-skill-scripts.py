@@ -85,11 +85,13 @@ class Contracts(ScriptCase):
                 result = self.run_script(VERIFY, "extract-findings.sh", 7, 11, self.work / "out", "acme", "demo")
                 self.assertEqual(result.returncode == 0, success, result.stderr)
 
-    def test_prior_review_survives_summary_only_followups(self):
+    def test_prior_review_ignores_summary_and_thread_reply_reviews(self):
         original = {"id": 11, "user": {"login": "tester"}, "submitted_at": "2026-01-01", "commit_id": "a" * 40, "state": "COMMENTED"}
         summary = dict(original, id=12, submitted_at="2026-01-02")
-        self.respond({"GET /user": {"login": "tester"}, "GET " + REVIEWS: [original, summary],
-                      "GET " + COMMENTS: [{"pull_request_review_id": 11}]})
+        reply = dict(original, id=13, submitted_at="2026-01-03", commit_id="b" * 40)
+        self.respond({"GET /user": {"login": "tester"}, "GET " + REVIEWS: [original, summary, reply],
+                      "GET " + COMMENTS: [{"pull_request_review_id": 11},
+                                          {"pull_request_review_id": 13, "in_reply_to_id": 42}]})
         result = self.run_script(VERIFY, "fetch-prior-review.sh", 7, "acme", "demo")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("review_id=11\n", result.stdout)

@@ -45,7 +45,7 @@ Do NOT activate when:
 - Create this invocation's scratch directory with `PR_REVIEW_SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/github-pr-fixes.XXXXXX")"`. Keep extracted findings, verdicts, body and response files inside it. Treat helper metadata as data, not shell code.
 - If user specifies `<N>`, use it. Else: `gh pr view --json number,headRefOid,headRefName` for current branch. Else ask.
 - Identify current GitHub login: `gh api /user --jq '.login'`.
-- Fetch the most-recent submitted review **by that login with inline findings** on this PR via `bash "$SKILL_ROOT/scripts/fetch-prior-review.sh" <pr>`. Summary-only follow-ups do not replace the original findings. Returns:
+- Fetch the most-recent submitted review **by that login with original inline findings** on this PR via `bash "$SKILL_ROOT/scripts/fetch-prior-review.sh" <pr>`. Summary-only follow-ups and review records created for thread replies do not replace the original findings. Returns:
   - `review_id`, `review_commit_id` (the SHA the prior review was anchored to), `review_submitted_at`, `review_html_url`.
 - If none found → STOP, recommend running a fresh code-review workflow + `github-pr-review-publish` first.
 - Capture the **current PR head SHA** separately — that's what the follow-up review anchors to.

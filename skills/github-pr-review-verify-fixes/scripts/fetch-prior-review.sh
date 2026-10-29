@@ -43,14 +43,15 @@ fi
 current_user="$(gh api /user --jq '.login' 2>/dev/null || true)"
 [[ -n "$current_user" ]] || { echo "error: cannot identify current user — run 'gh auth login'" >&2; exit 1; }
 
-# Select among reviews that still have inline findings on this PR.
+# Thread replies get their own review records; only root findings identify a review.
 reviews_json="$(gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/reviews" 2>/dev/null)" || {
   echo "error: gh api /pulls/${pr}/reviews failed" >&2
   exit 1
 }
 
 finding_reviews="$(gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/comments" \
-  | jq -s '[flatten | .[].pull_request_review_id | select(. != null)] | unique')" || {
+  | jq -s '[flatten | .[] | select(.in_reply_to_id == null)
+             | .pull_request_review_id | select(. != null)] | unique')" || {
   echo "error: cannot load prior inline findings" >&2
   exit 1
 }
