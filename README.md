@@ -86,17 +86,6 @@ CI in [validate-skills.yml](.github/workflows/validate-skills.yml) runs on macOS
 
 Actual-agent and live-PR checks are separate from fixture/installation tests. Use a dedicated sandbox repository; record the tested commit, CI run and actual GitHub receipts before tagging a release. Plans, journals and local verification artifacts are kept outside the distributed package and ignored by Git.
 
-## Name migration
-
-| Previous directory | Current skill |
-|---|---|
-| `huynong-create-pr` | `github-pr-create` |
-| `huynong-post-pr-review-comment` | `github-pr-review-publish` |
-| `huynong-pr-review-evaluator` | `github-pr-review-respond` |
-| `huynong-pr-review-followup` | `github-pr-review-verify-fixes` |
-
-Existing global copies are not renamed automatically. Install the desired new skill and remove an obsolete personal copy separately when ready.
-
 ## License
 
 [MIT](LICENSE). The complete license is also included in each installed skill directory.
