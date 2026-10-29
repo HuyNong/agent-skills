@@ -16,6 +16,9 @@ repo="${2:?repo required}"
 pr="${3:?pr number required}"
 verdicts_dir="${4:?verdicts directory required}"
 
+command -v gh >/dev/null || { echo "error: gh required" >&2; exit 2; }
+command -v jq >/dev/null || { echo "error: jq required" >&2; exit 2; }
+
 if [ ! -d "$verdicts_dir" ]; then
   echo "error: verdicts directory not found: $verdicts_dir" >&2
   exit 2
@@ -31,22 +34,17 @@ ok=0
 fail=0
 
 for f in "${files[@]}"; do
-  comment_id=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['in_reply_to'])" "$f" 2>/dev/null)
-  body=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['body'])" "$f" 2>/dev/null)
-
-  if [ -z "$comment_id" ] || [ -z "$body" ]; then
-    echo "fail ? missing_fields_in_$(basename "$f")"
+  if ! jq -e 'type == "object" and
+      (.in_reply_to | type == "number" and . > 0 and floor == .) and
+      (.body | type == "string" and length > 0)' "$f" >/dev/null 2>&1; then
+    echo "fail ? invalid_fields_in_$(basename "$f")"
     fail=$((fail + 1))
     continue
   fi
+  comment_id=$(jq -r '.in_reply_to' "$f")
 
   tmpfile=$(mktemp)
-  # Build minimal JSON payload for the reply
-  python3 -c "
-import json, sys
-payload = {'body': sys.argv[1], 'in_reply_to': int(sys.argv[2])}
-json.dump(payload, open(sys.argv[3], 'w'))
-" "$body" "$comment_id" "$tmpfile"
+  jq '{body, in_reply_to}' "$f" > "$tmpfile"
 
   http_code=$(gh api \
     "repos/${owner}/${repo}/pulls/${pr}/comments" \

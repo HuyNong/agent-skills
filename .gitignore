@@ -1,2 +1,4 @@
 .DS_Store
 .remember/
+/plans/
+__pycache__/

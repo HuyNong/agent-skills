@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Extract inline comments from a specific PR review and dump each as a JSON
 # file under an output directory — one finding per file. This is the canonical
-# input for the verdict-judgement loop and for build-followup-payload.sh.
+# input for the verdict-judgement loop and follow-up summary.
 #
 # Usage:
 #   extract-findings.sh <pr> <review_id> <out_dir> [<owner> <repo>]
@@ -52,18 +52,21 @@ comments_json="$(gh api --paginate \
   exit 1
 }
 
-# Pagination may concatenate arrays — flatten, then keep only this review's.
-mapfile -t comments < <(printf '%s' "$comments_json" \
+# Parse before the loop so a malformed response cannot look like zero findings.
+comments="$(printf '%s' "$comments_json" \
   | jq -c -s --argjson rid "$review_id" \
-      'flatten | map(select(.pull_request_review_id == $rid)) | .[]' 2>/dev/null)
+      'flatten | map(select(.pull_request_review_id == $rid)) | .[]')" || {
+  echo "error: cannot parse review comments" >&2
+  exit 1
+}
 
-if (( ${#comments[@]} == 0 )); then
+if [[ -z "$comments" ]]; then
   echo "warning: no inline comments on review ${review_id}" >&2
   exit 0
 fi
 
 idx=0
-for c in "${comments[@]}"; do
+while IFS= read -r c; do
   idx=$((idx + 1))
   cid="$(jq -r '.id' <<<"$c")"
   path="$(jq -r '.path' <<<"$c")"
@@ -110,6 +113,6 @@ for c in "${comments[@]}"; do
       diff_hunk: $diff_hunk,
       html_url: $html_url
     }' > "$out_file"
-done
+done <<< "$comments"
 
 echo "extracted ${idx} finding(s) to ${out_dir}"

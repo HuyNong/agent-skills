@@ -8,11 +8,16 @@ set -euo pipefail
 url="${1:-}"
 [[ -z "$url" ]] && { echo "usage: $0 <github-pr-comment-url>" >&2; exit 2; }
 
-# Strip query string
-url_no_q="${url%%\?*}"
+# Strip the query from the path without discarding the comment fragment.
+url_no_q="${url%%#*}"
+url_no_q="${url_no_q%%\?*}"
 
 # owner/repo/pull/N
-if [[ "$url_no_q" =~ github\.com/([^/]+)/([^/]+)/(pull|pulls)/([0-9]+) ]]; then
+if [[ "$url_no_q" =~ ^https://github\.com/([^/]+)/([^/]+)/(pull|pulls|issues)/([0-9]+)(/|$) ]]; then
+  owner="${BASH_REMATCH[1]}"
+  repo="${BASH_REMATCH[2]}"
+  pr="${BASH_REMATCH[4]}"
+elif [[ "$url_no_q" =~ ^https://api\.github\.com/repos/([^/]+)/([^/]+)/(pulls|issues)/([0-9]+)(/|$) ]]; then
   owner="${BASH_REMATCH[1]}"
   repo="${BASH_REMATCH[2]}"
   pr="${BASH_REMATCH[4]}"
@@ -22,8 +27,8 @@ else
 fi
 
 # Fragment: #discussion_rXXX, #r<id>, #issuecomment-<id>
-frag="${url_no_q##*#}"
-[[ "$frag" == "$url_no_q" ]] && frag=""
+frag="${url##*#}"
+[[ "$frag" == "$url" ]] && frag=""
 
 kind="unknown"
 comment_id=""

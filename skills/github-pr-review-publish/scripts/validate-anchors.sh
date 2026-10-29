@@ -47,7 +47,7 @@ fi
 
 # Pull every file's patch in one paginated call. Result schema per file:
 #   { "filename": "...", "patch": "@@ -A,B +C,D @@\n ... \n@@ ..." }
-files_json="$(mktemp -t pr-files.XXXXXX.json)"
+files_json="$(mktemp "${TMPDIR:-/tmp}/pr-files.XXXXXX")"
 trap 'rm -f "$files_json"' EXIT
 
 if ! gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/files" >"$files_json" 2>/dev/null; then
@@ -55,13 +55,11 @@ if ! gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/files" >"$files_json
   exit 3
 fi
 
-# Some toolchains return concatenated JSON arrays from --paginate; merge them.
-# `jq -s 'add // .'` flattens [[...],[...]] → [...] but leaves a single array alone.
+# Slurp all pages before looking up the patch, producing one result per path.
 patch_for_path() {
   local p="$1"
-  jq -r --arg p "$p" '
-    (if type == "array" then . else [.] end)
-    | flatten
+  jq -rs --arg p "$p" '
+    flatten
     | map(select(.filename == $p))
     | .[0].patch // empty
   ' "$files_json" 2>/dev/null
@@ -118,6 +116,14 @@ for json in "$comments_dir"/*.json; do
     continue
   fi
 
+  if [[ ! "$line" =~ ^[1-9][0-9]*$ ]] ||
+     [[ -n "$start_line" && ! "$start_line" =~ ^[1-9][0-9]*$ ]] ||
+     [[ "$side" != LEFT && "$side" != RIGHT ]]; then
+    bad=$((bad + 1))
+    bad_reports+=("$name: line/start_line must be positive integers and side must be LEFT or RIGHT")
+    continue
+  fi
+
   if [[ -n "$start_line" && -z "$start_side" ]]; then
     start_side="$side"
   fi
@@ -134,7 +140,10 @@ for json in "$comments_dir"/*.json; do
     continue
   fi
 
-  mapfile -t ranges < <(extract_ranges "$patch" "$side")
+  ranges=()
+  while IFS= read -r range; do
+    ranges+=("$range")
+  done < <(extract_ranges "$patch" "$side")
   if (( ${#ranges[@]} == 0 )); then
     bad=$((bad + 1))
     bad_reports+=("$name [$path L$line side=$side]: no hunks on this side")
@@ -146,10 +155,18 @@ for json in "$comments_dir"/*.json; do
     bad_reports+=("$name [$path L$line side=$side]: line outside hunks [$(IFS=,; echo "${ranges[*]}")]")
     continue
   fi
-  if [[ -n "$start_line" ]] && ! in_range "$start_line" "${ranges[@]}"; then
-    bad=$((bad + 1))
-    bad_reports+=("$name [$path start_line=$start_line side=$side]: start_line outside hunks [$(IFS=,; echo "${ranges[*]}")]")
-    continue
+  if [[ -n "$start_line" ]]; then
+    same_hunk=0
+    for range in "${ranges[@]}"; do
+      if (( start_line <= line && start_line >= ${range%%:*} && line <= ${range##*:} )); then
+        same_hunk=1
+        break
+      fi
+    done
+    if (( same_hunk == 0 )); then
+      bad=$((bad + 1))
+      bad_reports+=("$name [$path L$start_line-$line]: range must fit within one hunk")
+    fi
   fi
 done
 

@@ -42,21 +42,39 @@ case "$event" in
   *) echo "error: invalid event: $event" >&2; exit 2 ;;
 esac
 
-# Slurp comment files into a JSON array, sorted by filename for stable order.
-comments_json="$(
-  find "$comments_dir" -maxdepth 1 -type f -name '*.json' -print0 \
-    | xargs -0 -I{} cat {} \
-    | jq -s '.' 2>/dev/null \
-    || echo '[]'
-)"
+# Expand filenames without losing spaces; an empty directory is a valid summary.
+command -v jq >/dev/null || { echo "error: jq required" >&2; exit 2; }
+shopt -s nullglob
+comment_files=("$comments_dir"/*.json)
+comments_json='[]'
+if (( ${#comment_files[@]} > 0 )); then
+  if ! comments_json="$(
+    for comment_file in "${comment_files[@]}"; do
+      jq -es 'if length == 1 then .[0] else error("expected one JSON object per file") end' \
+        -- "$comment_file" || exit 3
+    done | jq -s '.'
+  )"; then
+    echo "error: cannot parse comment files; no payload produced" >&2
+    exit 3
+  fi
+fi
 
 # Validate each comment has the required fields.
 errors="$(printf '%s' "$comments_json" | jq -r '
-  to_entries | map(
-    . as $e
-    | (.value | if (has("path") and has("body") and has("line")) then empty
-        else "comment[" + ($e.key|tostring) + "] missing path/line/body" end)
-  ) | .[]
+  def positive_integer: type == "number" and . >= 1 and floor == .;
+  def valid_comment:
+    if type != "object" then false else
+      (.path | type == "string" and length > 0) and
+      (.body | type == "string" and length > 0) and
+      (.line | positive_integer) and
+      ((.side // "RIGHT") | . == "LEFT" or . == "RIGHT") and
+      (if has("start_line") then
+        (.start_line | positive_integer) and (.start_line <= .line) and
+        ((.start_side // .side // "RIGHT") == (.side // "RIGHT"))
+       else true end)
+    end;
+  to_entries | .[] | select(.value | valid_comment | not)
+  | "comment[\(.key)] has invalid path/body/line/side fields"
 ')"
 if [[ -n "$errors" ]]; then
   printf '%s\n' "$errors" >&2

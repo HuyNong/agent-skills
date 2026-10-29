@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Find the most recent review on a PR submitted by the currently-authenticated
-# `gh` user, and emit its key metadata for the followup workflow.
+# Find the current user's most recent submitted review containing inline findings.
+# Summary-only follow-ups must not hide the original review on the next run.
 #
 # Usage:
 #   fetch-prior-review.sh <pr> [<owner> <repo>]
@@ -21,7 +21,7 @@
 #   1  — generic failure
 #   2  — bad args / missing deps
 #   3  — no prior review by current user on this PR (caller should suggest
-#        running /pr-review-toolkit:review-pr + huynong-post-pr-review-comment)
+#        running a fresh code-review workflow + github-pr-review-publish)
 set -euo pipefail
 
 pr="${1:?pr number required}"
@@ -43,16 +43,22 @@ fi
 current_user="$(gh api /user --jq '.login' 2>/dev/null || true)"
 [[ -n "$current_user" ]] || { echo "error: cannot identify current user — run 'gh auth login'" >&2; exit 1; }
 
-# Reviews are returned oldest-first; pick the last one by current user.
+# Select among reviews that still have inline findings on this PR.
 reviews_json="$(gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/reviews" 2>/dev/null)" || {
   echo "error: gh api /pulls/${pr}/reviews failed" >&2
   exit 1
 }
 
-# `--paginate` can produce concatenated arrays; normalise via `jq -s`.
-prior="$(printf '%s' "$reviews_json" | jq -s --arg login "$current_user" '
+finding_reviews="$(gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/comments" \
+  | jq -s '[flatten | .[].pull_request_review_id | select(. != null)] | unique')" || {
+  echo "error: cannot load prior inline findings" >&2
+  exit 1
+}
+
+prior="$(printf '%s' "$reviews_json" | jq -s --arg login "$current_user" --argjson ids "$finding_reviews" '
   flatten
-  | map(select(.user.login == $login))
+  | map(select(.user.login == $login and .submitted_at != null))
+  | map(select(.id as $id | $ids | index($id) != null))
   | sort_by(.submitted_at)
   | last
 ' 2>/dev/null)"
