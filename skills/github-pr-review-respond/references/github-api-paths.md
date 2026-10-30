@@ -48,7 +48,7 @@ API endpoints:
 | Fetch one | `/repos/{owner}/{repo}/issues/comments/{id}` | GET |
 | Post new | `/repos/{owner}/{repo}/issues/{pr}/comments` | POST |
 
-There is NO threading. If you want to "reply" to a top-level comment, you post a new top-level comment. The skill should warn the user that threading wasn't possible.
+Issue comments have no native reply thread, but their source type does not decide placement. If the specific finding has an original inline thread, use it. Otherwise prefer a new inline comment at the exact relevant diff anchor; use a quoted top-level comment only when no valid relevant anchor exists. Choose this automatically, then show the reply and target for posting confirmation.
 
 (In the API, a PR is also an issue — that's why the issue endpoint works on a PR number.)
 
@@ -91,11 +91,24 @@ Or use the `-F` field to read from file:
 gh api -X POST <url> -F "body=@body.txt"
 ```
 
-(The skill's `post-reply.sh` uses `-f body="$body"` which works fine for multi-line strings as long as they're properly quoted in shell — but we read the body from a file, so this is safe.)
+The skill's `post-reply.sh` reads the body with `-F "body=@<body_file>"`.
 
 ## New inline comment (no thread to reply to)
 
-When the finding lives in the review's body text (suppressed-low-confidence sections, deferred notes), there's no `comment_id`. Post a fresh anchor:
+When a finding in a review summary or issue comment has no original inline thread, choose a fresh anchor before asking to post.
+
+### Resolve the anchor against the current PR
+
+1. Fetch `/repos/{owner}/{repo}/pulls/{pr}` for `head.sha`, and all pages of `/repos/{owner}/{repo}/pulls/{pr}/files` for canonical `filename`, `previous_filename` and `patch` values. Check the cited code at that head, not an unrelated local working-tree line.
+2. Trace the specific claim to its code. Resolve renamed paths to the current diff filename and remap old source line numbers when code moved. Do not anchor to another finding or an unrelated changed line in the same file.
+3. In a hunk `@@ -old_start,old_count +new_start,new_count @@`, context advances both line counters, `-` advances the old counter, and `+` advances the new counter. Use the blob line number, not the line's ordinal position within the patch. Use RIGHT for current additions/context, or LEFT for a claim about deleted code.
+4. Prefer one precise line. If a range is necessary, its endpoints must belong to the same relevant hunk with valid `start_line`/`start_side` and `line`/`side`. A readable source line outside the shown hunks is not a valid inline anchor.
+5. If the relevant patch is unavailable, the target is outside the diff, or the mapping remains uncertain, select a quoted top-level fallback. Explain the reason in the preview; do not ask the user to choose the posting style or force an unrelated anchor.
+6. Show the final reply, source URL and selected anchor/head for posting confirmation. Recheck `head.sha` before posting; if the approved target is invalidated, remap and present the updated target for confirmation rather than posting against a stale line.
+
+New inline/fallback bodies include the badge, a short quote of this finding, its source-comment link and the evidence-backed response; see `references/reply-templates.md` relative to the skill root.
+
+After confirmation, a single RIGHT-side anchor uses:
 
 ```bash
 gh api -X POST /repos/owner/repo/pulls/N/comments \
@@ -117,9 +130,11 @@ if you reference a local-only commit. Pre-flight check:
 ```bash
 gh api /repos/owner/repo/pulls/N/commits --jq '.[].sha' | grep -qx "<full-sha>"
 ```
-If it's not there, push first (`git push` / `but push <branch>`), then retry.
+If it is not there, do not push automatically. Prefer the verified current PR head when it contains the relevant code; if the approved anchor really requires the local commit, obtain push authorization first.
 
 Threaded-reply posts do NOT have this restriction — they inherit the parent comment's anchor.
+
+The bundled `post-new-inline.sh` sets `side=RIGHT` and a single `line`. For a LEFT-side or multi-line anchor, build an API payload with the actual validated side/range instead of passing it to that helper. API field meanings: [GitHub review-comment documentation](https://docs.github.com/en/rest/pulls/comments#create-a-review-comment-for-a-pull-request).
 
 ## Common failure modes
 

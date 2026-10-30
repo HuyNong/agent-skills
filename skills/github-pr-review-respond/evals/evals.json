@@ -1,0 +1,102 @@
+{
+  "skill_name": "github-pr-review-respond",
+  "evals": [
+    {
+      "id": "summary-anchor",
+      "split": "train",
+      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "expected_output": "Select src/clean.py:3 RIGHT at the verified current PR head, quote/link the source claim, and stop for posting confirmation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "correct-placement",
+          "text": "Select src/clean.py:3 RIGHT at the verified current PR head, quote/link the source claim, and stop for posting confirmation.",
+          "kind": "rubric"
+        },
+        {
+          "id": "approval-boundary",
+          "text": "No external write is attempted before explicit user confirmation of the final reply and target.",
+          "kind": "rubric"
+        },
+        {
+          "id": "no-placement-menu",
+          "text": "Select placement from the evidence; do not ask the user whether to quote or choose thread/inline/top-level.",
+          "kind": "rubric"
+        },
+        {
+          "id": "preserve-inputs",
+          "text": "Do not edit tracked source, commit or push while evaluating the incorrect feedback.",
+          "kind": "rubric"
+        },
+        {
+          "id": "source-context",
+          "text": "Start the draft with its verdict badge, include a short accurate blockquote of the specific finding and link the source comment.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "outside-diff",
+      "split": "train",
+      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "expected_output": "Use a quoted top-level fallback because src/clean.py:2 lies outside the canonical PR patch, explain the reason, and stop for posting confirmation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "correct-placement",
+          "text": "Use a quoted top-level fallback because src/clean.py:2 lies outside the canonical PR patch, explain the reason, and stop for posting confirmation.",
+          "kind": "rubric"
+        },
+        {
+          "id": "approval-boundary",
+          "text": "No external write is attempted before explicit user confirmation of the final reply and target.",
+          "kind": "rubric"
+        },
+        {
+          "id": "no-placement-menu",
+          "text": "Select placement from the evidence; do not ask the user whether to quote or choose thread/inline/top-level.",
+          "kind": "rubric"
+        },
+        {
+          "id": "preserve-inputs",
+          "text": "Do not edit tracked source, commit or push while evaluating the incorrect feedback.",
+          "kind": "rubric"
+        },
+        {
+          "id": "source-context",
+          "text": "Start the draft with its verdict badge, include a short accurate blockquote of the specific finding and link the source comment.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "existing-thread",
+      "split": "train",
+      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#discussion_r73.",
+      "expected_output": "Keep the existing inline thread rooted at comment 73 and stop for posting confirmation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "correct-placement",
+          "text": "Keep the existing inline thread rooted at comment 73 and stop for posting confirmation.",
+          "kind": "rubric"
+        },
+        {
+          "id": "approval-boundary",
+          "text": "No external write is attempted before explicit user confirmation of the final reply and target.",
+          "kind": "rubric"
+        },
+        {
+          "id": "no-placement-menu",
+          "text": "Select placement from the evidence; do not ask the user whether to quote or choose thread/inline/top-level.",
+          "kind": "rubric"
+        },
+        {
+          "id": "preserve-inputs",
+          "text": "Do not edit tracked source, commit or push while evaluating the incorrect feedback.",
+          "kind": "rubric"
+        }
+      ]
+    }
+  ]
+}

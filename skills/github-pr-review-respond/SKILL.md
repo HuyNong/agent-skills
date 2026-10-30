@@ -5,7 +5,7 @@ compatibility: Requires Bash 3.2+, git, authenticated gh and network access. Git
 license: MIT
 metadata:
   author: HuyNong
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # PR Review Evaluator
@@ -34,6 +34,7 @@ Adjudicate GitHub PR review comments. Verify the reviewer's claim against the ac
 | Draft fix + draft reply, show both, wait for go-ahead | Silently reverse a user-confirmed decision |
 | For `CORRECT`/`PARTIAL`: commit AFTER approval, then quote SHA in reply | Reply with a placeholder/fake SHA |
 | Reply inline (threaded) to the exact comment | Reply on a top-level PR comment when an inline thread exists |
+| Choose the reply location and quote context before asking to post | Ask the user to choose thread vs inline vs top-level when evidence resolves it |
 
 ## Workflow
 
@@ -63,6 +64,8 @@ Run `bash "$SKILL_ROOT/scripts/fetch-comment.sh" <owner> <repo> <comment_id> <ki
 - `diff_hunk` — the patch context the reviewer was looking at
 - `in_reply_to_id` — present if this is itself a reply (rare; usually null)
 - `author` — reviewer's GitHub handle
+
+For findings embedded in an issue comment or review summary, extract the specific claim and cited repository-relative path/range from its body or code links. `kind` describes the source comment, not the eventual reply location. Resolve placement in Step 9 even when the source has no structured `path` or `line` fields.
 
 ### Step 3 — Verify the claim (Scout-first, ask-second)
 
@@ -155,7 +158,15 @@ After approval:
 
 For `WRONG` / `STALE` / `OPINION` / `AMBIGUOUS` / `LOCKED-hold`: no commit; proceed to Step 9 directly.
 
-### Step 9 — Show finalised reply, wait for second go-ahead
+### Step 9 — Choose placement, show finalised reply and confirm posting
+
+Choose the location automatically, in this order. Read `references/github-api-paths.md` for anchor validation and API details.
+
+1. **Existing thread for this finding:** reply under its root inline comment, including when the supplied URL points to a reply or the summary links to the original thread. Do not start a second thread for the same finding.
+2. **No existing thread, exact diff anchor available:** create a new inline comment at the cited code. Fetch the current PR head and canonical paginated file patches. Match the actual code and line on the correct diff side; remap stale line references or renamed paths against the current patch. Prefer the narrowest relevant anchor. A file line number alone is not proof that it is commentable.
+3. **No confident valid diff anchor:** choose a top-level reply with the original claim quoted and linked. Explain the fallback in the preview; do not select an unrelated nearby line merely to force an inline comment.
+
+When replying outside the original thread, include the verdict badge, a short accurate quote of the specific claim, a link to its source, and the evidence-backed response. Select this context yourself; do not ask whether to quote or which posting style to use.
 
 Print:
 ```
@@ -164,36 +175,41 @@ Reply (final, with SHA inlined):
 <final reply text>
 ---
 Posting via: <endpoint>
-Threading: yes/no (yes for kind=review, no for kind=issue)
+Placement: <existing thread | new inline | top-level fallback>
+Target: <root comment URL | path:line/range, side and PR head SHA | fallback reason>
 ```
 
-Post only when the user has explicitly authorized sending this reply. Reuse authorization already given in the session; otherwise present the final reply and wait for "post" / "send" / "ship it".
+Present the final reply and chosen target, then wait for explicit confirmation to post. Approval already given for this reply and target is sufficient; choosing an anchor or evaluating feedback is not approval to publish. Keep the posting confirmation separate from any permission to edit, commit or push.
 
 ### Step 10 — Post
 
-Pick the right post mode based on what you're acknowledging.
+After posting confirmation, use the placement selected in Step 9. Recheck the PR head and anchor before a new inline post. If new commits invalidate the approved target, recompute it and show the updated preview for confirmation. Inspect existing replies before retrying an uncertain submission; do not post duplicates blindly.
 
 #### 10a. Threaded reply (most common)
 
 When you have a real `comment_id` from an existing inline review comment:
 
-- **`kind=review`** → threaded reply via `POST /repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies`.
-  Use `bash "$SKILL_ROOT/scripts/post-reply.sh" <owner> <repo> <pr> <comment_id> review <body_file>`.
-- **`kind=issue`** → new top-level PR comment (threading not available for top-level). Warn the user.
+Use `bash "$SKILL_ROOT/scripts/post-reply.sh" <owner> <repo> <pr> <root_comment_id> review <body_file>`. An issue-comment source may still link to a real inline thread; use that thread when it is the original one for the finding.
 
 Threaded replies do NOT need `commit_id`. The reply inherits the anchor of the original comment, so local-only commits referenced by SHA in the body text are fine — they only need to be reachable when the user clicks the markdown link.
 
 #### 10b. New inline comment (no thread to reply to)
 
-When the finding lives in a review's body text (e.g. "Comments suppressed due to low confidence" sections, deferred-review notes, top-level PR comments that reference a file) and there is NO `comment_id` to thread under — post a fresh inline anchor:
+When the finding has no original inline thread and Step 9 found a valid anchor, post a new inline reply even if the source was a top-level issue comment. For a single RIGHT-side line:
 
 ```bash
 bash "$SKILL_ROOT/scripts/post-new-inline.sh" <owner> <repo> <pr> <full_commit_sha> <path> <line> <body_file>
 ```
 
-**Critical pre-condition: the commit anchor MUST be pushed to origin first.** GitHub validates that `commit_id` is part of the PR, and a local-only SHA returns `422 commit_id is not part of the pull request`. The script pre-flights via `gh api /pulls/{pr}/commits` and refuses with a clear error if the commit isn't on origin.
+For LEFT-side or multi-line anchors, use the API fields in `references/github-api-paths.md`; this helper always posts a single RIGHT-side line.
 
-If pushing the fix commit is not already authorized, explain that the new inline anchor requires a push and ask for that permission.
+The anchor commit must already belong to the PR, normally its current remote head. A local-only SHA returns `422 commit_id is not part of the pull request`; the helper pre-flights membership. Do not push merely to obtain an anchor when the verified current PR head already contains the relevant code.
+
+Only if the approved response actually needs a local-only fix commit as its anchor, obtain push authorization before using it. An anchor already on the PR needs no additional push permission.
+
+#### 10c. Quoted top-level fallback
+
+Only when Step 9 cannot identify a valid original thread or relevant diff anchor, use `bash "$SKILL_ROOT/scripts/post-reply.sh" <owner> <repo> <pr> <source_comment_id> issue <body_file>`. Keep the source quote and link; a top-level source does not itself require a top-level reply.
 
 ### Step 11 — Push reminder (for any case with a local-only commit)
 
@@ -203,7 +219,7 @@ If Step 8 made a commit and pushing it is already authorized, push the branch no
 Local commit <sha> not yet pushed. The markdown link in the reply will 404 until you push: `but push <branch>` / `git push`.
 ```
 
-If Step 10 used `post-new-inline.sh`, the push already happened in Step 10b (required by pre-flight) — note that the push went through, separately from the comment confirmation.
+Report any authorized push separately from the comment result. A new inline comment on an existing PR commit does not imply a push occurred.
 
 Do not push without authorization covering that action.
 
@@ -225,7 +241,7 @@ Every invocation produces, in order:
 1. **Parsed input** (one line): `owner/repo#PR comment <id> by @author on <path>:<line>`
 2. **Verification log** (bulleted facts with `path:line` citations)
 3. **Verdict block** (verdict, confidence, evidence)
-4. **Draft reply** (plain text, ready to copy-paste)
+4. **Draft reply and automatically selected placement** (quote/source link when outside the original thread; exact anchor or fallback reason)
 5. **Wait for approval**
 6. **Post + return URL** (after approval)
 

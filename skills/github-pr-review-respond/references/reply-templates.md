@@ -1,6 +1,6 @@
 # Reply Templates
 
-Copy-paste skeletons per verdict. Replace `<placeholders>`. Plain text — no leading `>` blockquotes (GitHub re-quotes them when pasted).
+Copy-paste Markdown skeletons per verdict. Replace `<placeholders>`. When replying outside the original thread, add the source-context block below after the badge; GitHub does not automatically quote the source of a new inline or top-level comment.
 
 ## Style rules
 
@@ -11,6 +11,18 @@ Copy-paste skeletons per verdict. Replace `<placeholders>`. Plain text — no le
 - Don't disparage. Even on `WRONG`, attack the claim, not the reviewer.
 - Don't echo secrets that appeared in the reviewer's comment — redact first.
 - **Every reply starts with a shields.io verdict badge** (matches follow-up skill convention).
+
+### Source context outside the original thread
+
+For a new inline comment or top-level fallback, insert this after the badge and before the verdict explanation:
+
+```markdown
+> <short, accurate quote of the specific finding being answered>
+
+[Original comment](<source-comment-url>)
+```
+
+Choose the quote and source link automatically. Quote only the relevant claim, not the entire aggregated bot report; redact private data and keep code escaping intact. Follow with `path:line` evidence and actual test results when available. Existing threaded replies already retain their source context and may omit this block. Posting still requires confirmation of the final reply and target.
 
 ### Verdict badges
 

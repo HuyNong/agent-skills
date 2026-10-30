@@ -6,7 +6,7 @@ Four portable [Agent Skills](https://agentskills.io) for GitHub pull-request wor
 |---|---|
 | `github-pr-create` | Create a PR from committed branch changes, with a structured description and an authorized push when needed. |
 | `github-pr-review-publish` | Publish existing review findings as one summary and anchored inline comments. |
-| `github-pr-review-respond` | Verify incoming reviewer feedback, draft a reply, and apply/commit a fix when authorized. |
+| `github-pr-review-respond` | Verify feedback, automatically choose its thread or diff anchor, and draft a reply for posting confirmation. Apply/commit fixes when authorized. |
 | `github-pr-review-verify-fixes` | Check new commits against prior findings and publish an authorized follow-up with per-finding verdicts. |
 
 Use your normal code-review workflow to produce new findings. Publishing findings, responding to a reviewer and checking later fixes are separate intents.
@@ -56,6 +56,8 @@ Skills use the active `gh` identity. Check that it is the intended account befor
 - **Verify fixes:** “The author pushed new commits to PR #12. Check whether the findings from my prior review are fixed.”
 
 Authorization applies to the requested actions. An evaluation request alone does not authorize edits or GitHub posts. Skills reuse authorization already given in the session; merge, thread resolution and unsolicited approval are outside their workflows. Fix verification always submits COMMENT, never APPROVE or REQUEST_CHANGES.
+
+Respond selects reply placement automatically: the original inline thread first, otherwise the exact relevant diff anchor, with a quoted top-level fallback when no valid anchor exists. New inline and fallback replies quote and link the original claim. The final reply and target are shown for posting confirmation; users do not need to choose the placement separately.
 
 ## Resource handling
 

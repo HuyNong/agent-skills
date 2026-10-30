@@ -12,7 +12,7 @@ Pick exactly one verdict per review comment. Each has clear entry criteria — i
 - The proposed fix (or an equivalent) is the right shape.
 - The change does NOT touch a user-confirmed decision (see `LOCKED`).
 
-**Action:** Acknowledge concisely, state planned fix. Do not apply the fix yet (skill never edits code).
+**Action:** Acknowledge concisely and state the planned fix. Apply/commit it only with user authorization, following the skill workflow.
 
 ---
 
