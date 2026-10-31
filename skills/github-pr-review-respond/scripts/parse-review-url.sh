@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Parse a GitHub PR review-comment URL into structured fields.
 # Usage: parse-review-url.sh <url>
-# Output (one KEY=VALUE per line): owner, repo, pr, comment_id, kind
-#   kind = review | issue | unknown
+# Output: owner, repo, pr, comment_id, kind; review_id for review submissions.
+# kind = review (inline) | issue | review-summary | pr
 set -euo pipefail
 
 url="${1:-}"
@@ -32,6 +32,7 @@ frag="${url##*#}"
 
 kind="unknown"
 comment_id=""
+review_id=""
 
 if [[ "$frag" =~ ^discussion_r([0-9]+)$ ]]; then
   kind="review"; comment_id="${BASH_REMATCH[1]}"
@@ -39,6 +40,8 @@ elif [[ "$frag" =~ ^r([0-9]+)$ ]]; then
   kind="review"; comment_id="${BASH_REMATCH[1]}"
 elif [[ "$frag" =~ ^issuecomment-([0-9]+)$ ]]; then
   kind="issue"; comment_id="${BASH_REMATCH[1]}"
+elif [[ "$frag" =~ ^pullrequestreview-([0-9]+)$ ]]; then
+  kind="review-summary"; review_id="${BASH_REMATCH[1]}"
 fi
 
 # Also support API-style: .../pulls/N/comments/<id> (review) or .../issues/N/comments/<id>
@@ -47,12 +50,15 @@ if [[ -z "$comment_id" ]]; then
     kind="review"; comment_id="${BASH_REMATCH[1]}"
   elif [[ "$url_no_q" =~ /issues/[0-9]+/comments/([0-9]+) ]]; then
     kind="issue"; comment_id="${BASH_REMATCH[1]}"
+  elif [[ -z "$frag" && "$url_no_q" =~ /pulls/[0-9]+/reviews/([0-9]+)/?$ ]]; then
+    kind="review-summary"; review_id="${BASH_REMATCH[1]}"
+  elif [[ -z "$frag" && "$url_no_q" =~ /(pull|pulls|issues)/[0-9]+(/files)?/?$ ]]; then
+    kind="pr"
   fi
 fi
 
-if [[ -z "$comment_id" ]]; then
-  echo "error: could not extract comment id from URL: $url" >&2
-  echo "  expected fragment like #discussion_r123, #r123, or #issuecomment-123" >&2
+if [[ "$kind" == unknown ]]; then
+  echo "error: unrecognised PR comment/review target: $url" >&2
   exit 1
 fi
 
@@ -63,3 +69,4 @@ pr=$pr
 comment_id=$comment_id
 kind=$kind
 EOF
+[[ -z "$review_id" ]] || printf 'review_id=%s\n' "$review_id"

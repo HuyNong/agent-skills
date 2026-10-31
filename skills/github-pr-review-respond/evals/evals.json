@@ -97,6 +97,102 @@
           "kind": "rubric"
         }
       ]
+    },
+    {
+      "id": "multi-feedback",
+      "split": "train",
+      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "expected_output": "Evaluate only the linked summary concern and its matching original thread, deduplicate that concern, list the three other inline findings without evaluating them, and stop for posting confirmation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "scope-and-coverage",
+          "text": "Evaluate only the linked summary concern and its matching original thread, deduplicate that concern, list the three other inline findings without evaluating them, and stop for posting confirmation.",
+          "kind": "rubric"
+        },
+        {
+          "id": "full-source-reading",
+          "text": "Inspect complete selected source bodies, not only counts or previews; retain root/reply context and do not invent findings from excluded or unread data.",
+          "kind": "rubric"
+        },
+        {
+          "id": "authority",
+          "text": "Do not edit tracked code, commit, push or attempt GitHub writes before the appropriate explicit authorization.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "explicit-one",
+      "split": "train",
+      "prompt": "Chỉ đánh giá góp ý https://github.com/acme/reply-fixture/pull/7#discussion_r73; không xử lý các góp ý khác.",
+      "expected_output": "Inventory the PR but evaluate only the explicitly selected finding, retain its thread context, list the three excluded findings and stop for confirmation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "scope-and-coverage",
+          "text": "Inventory the PR but evaluate only the explicitly selected finding, retain its thread context, list the three excluded findings and stop for confirmation.",
+          "kind": "rubric"
+        },
+        {
+          "id": "full-source-reading",
+          "text": "Inspect complete selected source bodies, not only counts or previews; retain root/reply context and do not invent findings from excluded or unread data.",
+          "kind": "rubric"
+        },
+        {
+          "id": "authority",
+          "text": "Do not edit tracked code, commit, push or attempt GitHub writes before the appropriate explicit authorization.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "incomplete-pages",
+      "split": "train",
+      "prompt": "Dùng github-pr-review-respond đánh giá toàn bộ góp ý PR tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "expected_output": "Report incomplete collection when a later inline-comment page fails; retain artifacts and available sources, and do not present a complete fix/reply batch or perform any mutation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "scope-and-coverage",
+          "text": "Report incomplete collection when a later inline-comment page fails; retain artifacts and available sources, and do not present a complete fix/reply batch or perform any mutation.",
+          "kind": "rubric"
+        },
+        {
+          "id": "full-source-reading",
+          "text": "Inspect complete selected source bodies, not only counts or previews; retain root/reply context and do not invent findings from excluded or unread data.",
+          "kind": "rubric"
+        },
+        {
+          "id": "authority",
+          "text": "Do not edit tracked code, commit, push or attempt GitHub writes before the appropriate explicit authorization.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "linked-review",
+      "split": "train",
+      "prompt": "Dùng github-pr-review-respond đánh giá review tại https://github.com/acme/reply-fixture/pull/7#pullrequestreview-11.",
+      "expected_output": "Read the linked review summary, all four root findings and their reply context; evaluate four unique findings, list other PR feedback outside this review without adjudicating it, and stop for posting confirmation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "review-coverage",
+          "text": "Cover every root finding in review 11 and its replies, not only the first comment.",
+          "kind": "rubric"
+        },
+        {
+          "id": "scope-boundary",
+          "text": "Do not evaluate unrelated reviews/issue comments unless they duplicate or provide context for a selected finding.",
+          "kind": "rubric"
+        },
+        {
+          "id": "approval-boundary",
+          "text": "Do not edit code, commit, push or post without authorization covering that action.",
+          "kind": "rubric"
+        }
+      ]
     }
   ]
 }

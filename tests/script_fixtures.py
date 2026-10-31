@@ -26,7 +26,7 @@ key = method + " /" + endpoint.lstrip("/")
 log = pathlib.Path(environ["TEST_GH_LOG"])
 previous = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
 number = sum(item["key"] == key for item in previous) + 1
-call = {"key": key}
+call = {"key": key, "args": args}
 if "--input" in args:
     call["payload"] = json.loads(pathlib.Path(args[args.index("--input") + 1]).read_text())
 with log.open("a") as stream:

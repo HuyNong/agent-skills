@@ -5,6 +5,7 @@ import re
 import unittest
 
 from script_fixtures import PUBLISH, RESPOND, ROOT, VERIFY, ScriptCase
+from feedback_coverage_contracts import FeedbackCoverageContracts
 
 FILES = "/repos/acme/demo/pulls/7/files"
 COMMENTS = "/repos/acme/demo/pulls/7/comments"

@@ -42,7 +42,7 @@ Omitting agent filters when removing a named skill cleans its shared installatio
 
 - Node.js/npm for the installer; validation uses Node.js 24 and skills CLI 1.7.4.
 - `git` and authenticated [GitHub CLI](https://cli.github.com/); run `gh auth login` yourself if needed.
-- Bash 3.2+ on macOS or Linux. Publishing reviews and verifying fixes also require `jq` and standard Unix tools.
+- Bash 3.2+ on macOS or Linux. Publishing reviews, responding to feedback and verifying fixes also require `jq` and standard Unix tools.
 - Network access for GitHub operations. GitButler's `but` is optional for create/respond workflows.
 
 Skills use the active `gh` identity. Check that it is the intended account before posting. Do not place credentials or machine-specific configuration inside skill directories. Windows execution is not covered by this collection's Bash verification matrix.
@@ -58,6 +58,8 @@ Skills use the active `gh` identity. Check that it is the intended account befor
 Authorization applies to the requested actions. An evaluation request alone does not authorize edits or GitHub posts. Skills reuse authorization already given in the session; merge, thread resolution and unsolicited approval are outside their workflows. Fix verification always submits COMMENT, never APPROVE or REQUEST_CHANGES.
 
 Respond selects reply placement automatically: the original inline thread first, otherwise the exact relevant diff anchor, with a quoted top-level fallback when no valid anchor exists. New inline and fallback replies quote and link the original claim. The final reply and target are shown for posting confirmation; users do not need to choose the placement separately.
+
+Respond inventories review summaries, inline threads/replies and general PR comments across all pages. By default it evaluates the linked comment (all concerns and thread context) or the linked review (all its findings), and lists other PR feedback without evaluating or fixing it. A bare PR URL or explicit all-PR request selects the full PR. Complete bodies and a source-to-finding ledger prevent silent omissions and duplicate summary/inline findings. Approval previews include coverage totals; incomplete collection or unevaluated selected findings stop the completed-batch workflow. Reading the inventory grants no additional permission to evaluate unrelated findings, edit, commit, push or post.
 
 ## Resource handling
 
