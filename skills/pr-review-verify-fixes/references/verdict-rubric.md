@@ -17,7 +17,7 @@ For each prior finding:
 
 1. **Read the original finding body** — identify the *specific* defect (the noun phrase that came after "Bug:" / "Problem:" / similar). NOT the surrounding prose.
 2. **Open the current file at the anchored path** (`git show <current_head>:<path>`). If the file is gone, jump to step 5.
-3. **Read the diff** `git diff <prior_review_commit_id>..<current_head> -- <path>`. If empty → **Unaddressed**.
+3. **Read the diff** `git diff <prior_review_commit_id>..<current_head> -- <path>`. If empty, trace relevant callers, dependencies/configuration and tests before deciding. A fix outside the anchored file can address the original concern.
 4. **Apply the test for each verdict in order:**
    - Is the original defect present in the current file? If yes → **Unaddressed** (even if the line changed).
    - Is the defect gone AND no related variant introduced? → **Fixed**.
@@ -107,12 +107,14 @@ Compute merge recommendation from verdict counts:
 
 | Open Critical | Open Important | Open Suggestion | Cannot Verify | Recommendation |
 |---------------|----------------|-----------------|---------------|----------------|
-| 0 | 0 | * | 0 | ✅ All clear — recommend merge |
+| 0 | 0 | * | 0 | Selected blocking findings addressed; assess CI, effective approval and mergeability before any merge-ready recommendation. |
 | 0 | 0 | * | >0 | ⚠️ Cannot verify N items — human review needed |
 | >0 | * | * | * | ⏳ Critical(s) open — block merge |
 | 0 | >0 | * | * | ⏳ Important(s) open — re-run after next push |
 
 Suggestion-level findings never block merge. They can ship as "shippable with N polish items tracked".
+
+Unknown severity is not automatically Suggestion. Keep unsupported/unverifiable blocking concerns explicit. This matrix addresses selected findings only; use `references/merge-readiness.md` relative to the skill root for the separate read-only platform gate.
 
 ## Anti-patterns to refuse
 

@@ -1,6 +1,6 @@
 # Verdict Taxonomy
 
-Pick exactly one verdict per review comment. Each has clear entry criteria — if more than one matches, prefer the one higher in this list (it's roughly ordered by signal strength).
+Apply the LOCKED decision guard first. Then pick one verdict per independent finding from the supported claim, using the criteria below. Resolution status (planned/local/on PR) is separate from this verdict.
 
 ---
 
@@ -101,7 +101,7 @@ Self-rate confidence per verdict 0–100%. Threshold for proceeding without aski
 | `PARTIAL` | 85% |
 | `STALE` | 95% (must be verifiable via commit log) |
 | `LOCKED` | 70% (low bar — when unsure if a decision is locked, treat as locked and ask) |
-| `OPINION` | 75% |
-| `AMBIGUOUS` | n/a — always ask the reviewer, not the user |
+| `OPINION` | 85% (preserves the main workflow's default gate) |
+| `AMBIGUOUS` | n/a — draft one question to the reviewer; posting still requires user confirmation |
 
 If below threshold, surface the ambiguity to the user instead of forcing a verdict.

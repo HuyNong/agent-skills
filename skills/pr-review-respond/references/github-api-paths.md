@@ -60,7 +60,7 @@ Issue comments have no native reply thread, but their source type does not decid
 | `#r<id>` | review (from /files view) |
 | `#issuecomment-<id>` | issue |
 
-If no fragment is present, the URL points to the PR overall, not a specific comment — ask the user to copy the specific comment URL.
+A bare PR URL selects PR-wide feedback. A review submission selects its summary/findings/thread context; a comment selects its concerns and thread context. The parser preserves that target identity.
 
 ## `gh` CLI invocation patterns
 
@@ -121,20 +121,27 @@ gh api -X POST /repos/owner/repo/pulls/N/comments \
 
 Required fields: `commit_id`, `path`, `line`, `side`. Optional for multi-line: `start_line`, `start_side`.
 
-**Critical pre-condition: `commit_id` MUST already be pushed to origin AND be part of the PR's commit history.** GitHub validates this and returns:
+The anchor commit must belong to the PR's repository/history, including a fork head; it need not be on a remote named origin. GitHub rejects a local-only anchor:
 ```
 422 Validation Failed
 "commit_id is not part of the pull request"
 ```
-if you reference a local-only commit. Pre-flight check:
+For the common case, compare the intended SHA directly with PR metadata:
 ```bash
-gh api /repos/owner/repo/pulls/N/commits --jq '.[].sha' | grep -qx "<full-sha>"
+gh api /repos/owner/repo/pulls/N --jq '.head.sha'
 ```
-If it is not there, do not push automatically. Prefer the verified current PR head when it contains the relevant code; if the approved anchor really requires the local commit, obtain push authorization first.
+The commits endpoint has a 250-commit cap. A historical anchor needs complete verified Git ancestry or a complete API result; absent/incomplete evidence is not proof a push is needed. Prefer the verified current head. API failure, membership uncertainty and snapshot drift are distinct outcomes.
 
 Threaded-reply posts do NOT have this restriction — they inherit the parent comment's anchor.
 
-The bundled `post-new-inline.sh` sets `side=RIGHT` and a single `line`. For a LEFT-side or multi-line anchor, build an API payload with the actual validated side/range instead of passing it to that helper. API field meanings: [GitHub review-comment documentation](https://docs.github.com/en/rest/pulls/comments#create-a-review-comment-for-a-pull-request).
+The bundled `post-new-inline.sh` sets one RIGHT line and accepts optional receipt/item arguments after its seven positions. For LEFT/range anchors, validate the actual canonical patch, write a full JSON payload with body/path/side/line and optional start fields, then use the same package-local receipt path after posting confirmation:
+
+```bash
+source "$SKILL_ROOT/scripts/review-receipt.sh"
+receipt_post <receipt> respond <owner> <repo> <pr> <item_key> /repos/<owner>/<repo>/pulls/<pr>/comments <payload.json> <verified_head_sha>
+```
+
+This enforces snapshot/binding/read-back recovery, not semantic anchor correctness. API field meanings: [GitHub review-comment documentation](https://docs.github.com/en/rest/pulls/comments#create-a-review-comment-for-a-pull-request).
 
 ## Common failure modes
 

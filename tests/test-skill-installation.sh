@@ -55,6 +55,8 @@ for base in [".agents/skills", ".claude/skills"]:
                                      "https://github.com/acme/demo/pull/7#discussion_r42"],
                                     cwd=project, text=True, capture_output=True, check=True)
             assert "comment_id=42\n" in result.stdout, result.stdout
+        subprocess.run([sys.executable, str(original / "tests/installed-skill-smoke.py"),
+                        str(folder), project], cwd=project, check=True)
 PY
     (cd "$project" && npx --yes skills@1.7.4 remove --skill '*' -y) \
       > "$case_root/remove.log" 2>&1 || { cat "$case_root/remove.log"; exit 1; }

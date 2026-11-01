@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "create-fork-upstream-base",
+      "intent": "create-fork",
+      "fixture": {"snapshot": "reviewed", "remote_head": true, "existing_pr": false, "branch_case": "fork"},
+      "prompt": "Open a PR for this already committed and pushed contributor branch into main in acme/consumer-fixture. origin is the contributor fork; upstream is the target. Refresh and use the upstream base. Do not edit, commit, push, fork, or merge; creating the PR is authorized.",
+      "expect": {
+        "answer_any": ["pull/7"],
+        "writes": {"min": 1, "max": 1, "kinds": ["pr-create"]},
+        "payload_contains": ["--repo", "acme/consumer-fixture", "--head", "fixture-user:negative-amount-guard", "--base", "main"],
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "create-detached-head-stop",
+      "intent": "create-detached",
+      "fixture": {"snapshot": "reviewed", "remote_head": true, "existing_pr": false, "branch_case": "detached"},
+      "prompt": "Open a PR from the current committed work into main if the branch is unambiguous. Do not invent or switch branches, edit, commit, or push. If HEAD is detached, explain the missing branch selection and stop.",
+      "expect": {
+        "answer_any": ["detached", "branch"],
+        "writes": {"min": 0, "max": 0},
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "create-divergent-head-stop",
+      "intent": "create-divergence",
+      "fixture": {"snapshot": "reviewed", "remote_head": true, "existing_pr": false, "branch_case": "diverged"},
+      "prompt": "Create a PR from this committed branch into main. An ordinary fast-forward push is authorized only if needed. Do not force-push, rebase, merge branches or edit. Inspect the actual remote head; if local and remote diverged, explain and stop before push/create.",
+      "expect": {
+        "answer_any": ["diverg|both.*commit|reconcil"],
+        "writes": {"min": 0, "max": 0},
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    }
+  ]
+}

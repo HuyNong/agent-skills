@@ -1,100 +1,67 @@
-# Chained Workflow
+# Chained workflow
 
-`pr-review-verify-fixes` is one node in a multi-skill review pipeline. Use this reference to understand entry points, exit conditions, and how to avoid spamming the PR.
+Use a fresh code-review workflow to discover findings, `pr-review-publish` to
+publish them, and this skill to verify the selected prior review after changes.
+Each package supplies its own helpers; no companion installation is required.
 
-## Full chain
+## Entry and scope
 
-```
-                              fresh PR
-                                 │
-                                 ▼
-                  a fresh code-review workflow <N>           [runs adversarial agents,
-                                 │                            saves findings to plans/reports/]
-                                 ▼
-                  pr-review-publish                     [aggregates + classifies findings,
-                                 │                            validates anchors,
-                                 │                            posts ONE review with inline comments]
-                                 ▼
-                  ┌──── dev pushes follow-up commits ────┐
-                  │                                       │
-                  ▼                                       │
-                  pr-review-verify-fixes                      │
-                                 │                        │
-                                 ▼                        │
-                       ┌── all Fixed? ──┐                 │
-                       │                │                 │
-                      Yes               No                │
-                       │                │                 │
-                       ▼                └─────────────────┘
-              human clicks Approve
-                       │
-                       ▼
-                     merge
-```
+- Preserve an explicit review ID. Otherwise choose the active identity's substantive
+  original review; inspect summary-only reviews semantically before selecting.
+- Collect its full summary, General notes, original inline roots and cross-review
+  replies. Validate the selected-review ledger before a completed preview or post.
+- If the reviewed SHA is still the current head, report no new commits and stop a
+  new batch. An incomplete previously approved batch can still resume.
+- If the reviewed SHA disappeared after a rebase or history is capped, report
+  follow-up history as indeterminate. A bounded comparison of current behavior may
+  still be possible; do not invent a commit count or infer Fixed from an empty diff.
+- Check the pinned current PR behavior through callers, dependencies, configuration,
+  moves and tests. Do not expand this into a fresh review of unrelated code.
 
-## Entry points
+## Two independent conclusions
 
-- **Fresh PR, no prior review by you:** start at a fresh code-review workflow.
-- **You already reviewed but dev hasn't pushed yet:** wait. Nothing to do. (`list-followup-commits.sh` will return zero commits — the skill exits cleanly.)
-- **You reviewed AND dev pushed at least one commit since:** start here, at `pr-review-verify-fixes`.
-- **You reviewed, dev pushed, you already posted ONE follow-up for the current head SHA:** skill should ask before posting a duplicate. If the dev hasn't pushed since the last follow-up, there's nothing new to verify.
+Report each selected finding as Fixed, Partial, Unaddressed or Cannot Verify.
+Critical and Important findings require Fixed; Suggestions retain their nonblocking
+policy. Unknown severity needs an explicit decision and must not become Suggestion.
 
-## Exit conditions
+Then collect read-only platform facts using
+[merge-readiness.md](merge-readiness.md). A merge recommendation requires both gates:
+the selected blocking findings are addressed AND applicable checks, effective approval,
+rules, draft/state and mergeability are established for the stable evaluated snapshot.
+An old approval can remain effective; required CI may run on a test merge SHA.
+Missing or unsupported facts mean limited/unknown, even when all findings are Fixed.
+The skill never approves, requests changes, resolves threads, merges, or edits code.
 
-A `pr-review-verify-fixes` run ends in one of three states:
+## Deliver and resume
 
-| State | Output | Next action |
-|-------|--------|-------------|
-| **All clear** | "Recommend merge" in top-level body | Human reviewer clicks Approve in GitHub UI. Skill does NOT auto-approve. |
-| **Open items** | Per-finding Unaddressed/Partial comments + "Re-run after next commit batch" | Dev pushes more fixes, user re-invokes the skill. |
-| **Cannot verify** | "Human review needed" + list of unverifiable items | User reads the listed items, decides whether to investigate manually or accept the ambiguity. |
+Preview the complete findings table, evidence, readiness limits, exact reply bodies
+and original thread targets. Obtain post authority or reuse it for unchanged text
+and targets already authorized in the session.
 
-The skill NEVER:
-- Auto-loops or polls for new commits (the user controls cadence).
-- Auto-approves (per safety policy).
-- Auto-merges (out of scope).
-- Edits code to "fix" remaining findings (out of scope — use a code-implementation skill).
+Use this package's `post-followup-summary.sh` (COMMENT, no new inline comments)
+and `post-thread-replies.sh` with one private receipt. See
+[delivery-receipts.md](delivery-receipts.md). Summary-only findings stay in the table;
+inline findings reply to their original roots.
 
-## Anti-spam rules
+Treat summary and every reply as separate items. A summary existing at this head
+does not prove its replies succeeded. Resume posted items without resending them,
+retry definitive rejections only after the cause is repaired, and reconcile unknown
+writes by exact identity/body/target before retry. Unknown or ambiguous matches stop.
+Do not reset a receipt to bypass a mismatch.
 
-Before posting, the skill MUST:
-
-1. Check whether a prior follow-up review by the current user already exists for the CURRENT head SHA:
-   ```bash
-   gh api /repos/{owner}/{repo}/pulls/{pr}/reviews \
-     --jq '.[] | select(.user.login == "<login>" and .commit_id == "<current_head>")'
-   ```
-   If present → ask the user whether to post a NEW follow-up review or amend the existing one (the latter is usually not needed; just exit and tell them the existing one is current).
-
-2. Confirm `list-followup-commits.sh` returned ≥1 commit. If zero → exit without posting (nothing to say).
-
-3. Confirm at least one finding produced a NEW verdict vs the prior follow-up (if any). If the verdict set hasn't changed → exit; reposting identical verdicts is spam.
-
-## Decision matrix: when to re-run
-
-| Since last follow-up… | New commits? | Same verdicts as last follow-up? | Re-run? |
-|----------------------|--------------|----------------------------------|---------|
-| No prior follow-up exists | yes | n/a | **Yes** |
-| Prior follow-up exists | no | n/a | **No** — nothing changed |
-| Prior follow-up exists | yes | yes (no progress) | Ask user — usually skip |
-| Prior follow-up exists | yes | no (some Fixed) | **Yes** — celebrate progress, list remaining |
-
-## Composition with companion skills
-
-`pr-review-verify-fixes` uses a two-step submission:
-
-1. **Top-level review** — assembles its own summary-only payload with jq (`event: COMMENT`, empty comments array), then submits through `gh api --input` as shown in SKILL.md. No publisher skill installation is required.
-2. **Thread replies** — uses its own `post-thread-replies.sh` to post each verdict as an `in_reply_to` reply to the original finding comment. No anchor validation needed.
-
-This eliminates the anchor re-validation step entirely. Verdicts appear threaded under the original findings, giving reviewers context in one place.
+Read all pages when reconciling an existing follow-up. An unrelated review by the
+same identity is not a duplicate. For an already complete, identical verdict set,
+return its URLs rather than posting again. New text or targets need a new preview
+and authority; snapshot drift needs re-evaluation before resuming.
 
 ## Failure handoff
 
-If this skill cannot proceed (no prior review, no commits, anchor explosion), tell the user the specific reason and the next action — don't bounce them around without direction.
-
-| Reason | Tell the user |
-|--------|---------------|
-| No prior findings by current user | Run a fresh code-review workflow, then publish its findings with `pr-review-publish`. |
-| Zero follow-up commits | Dev hasn't pushed yet. Re-run after they push. |
-| Original comment deleted (thread reply fails) | Finding covered by top-level summary table. No action needed. |
-| Duplicate follow-up for current head | Existing follow-up still applies. Re-run after next push. |
+| Condition | Report and next step |
+|---|---|
+| No substantive prior review | Ask for the intended review or use a fresh review workflow when requested. |
+| No new commits, no partial batch | Report no new work; do not post another follow-up. |
+| Incomplete collection or ledger | Retain artifacts and identify missing sources/verdicts; no completed-batch claim. |
+| Deleted original thread | Keep its verdict in the summary, report reply failure explicitly; don't silently retarget. |
+| Summary posted, some replies failed | Return the summary URL plus posted/failed/unknown items and receipt; resume missing items only. |
+| Rules, CI or mergeability inaccessible | Keep finding verdicts; platform readiness remains limited/unknown. |
+| Snapshot/body/identity/target drift | Stop, refresh affected evidence and reconfirm only changed wording or targets. |

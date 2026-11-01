@@ -5,7 +5,7 @@ compatibility: Requires git, authenticated gh and network access. GitButler (but
 license: MIT
 metadata:
   author: HuyNong
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Create PR
@@ -35,7 +35,8 @@ Create a well-structured GitHub pull request from the current session's work.
 1. Use an explicit base branch supplied by the user first.
 2. Otherwise inspect repository instructions and existing project configuration or local project notes for `pr-base-branch`, `base branch` or `PR target` (for example, `develop`). Do not scan another runtime's global memory.
 3. Inspect the remote default branch as a candidate if no project target is recorded. If the intended target remains ambiguous, ask the user using an available interaction tool; do not assume the default is the correct PR base.
-4. Confirm the selected branch exists on the remote and retain it for Step 5.
+4. Resolve the base repository/remote separately from the head repository/branch and push remote. In a fork, `origin` can be the contributor's fork while the PR belongs to upstream. Verify canonical repository identities with gh; ask only when the intended target cannot be discovered.
+5. Fetch the selected remote base ref and capture its full commit SHA. Capture the committed head SHA separately. Retain `{base_repo, base_branch, base_sha, head_repo, head_branch, head_sha, push_remote}` for the rest of the invocation; do not compare with a possibly stale local base branch.
 
 ### Step 2 — Check Working Tree
 
@@ -46,35 +47,36 @@ Create a well-structured GitHub pull request from the current session's work.
 ### Step 3 — Gather Commits
 
 1. Get current branch: `git branch --show-current` (or parse from `but status`).
-2. List commits on this branch vs base:
+2. List commits using the fetched base SHA and captured committed head SHA:
    ```bash
-   git log --oneline {base}..HEAD
+   git log --oneline "$base_sha..$head_sha"
    ```
 3. Get the full diff for analysis:
    ```bash
-   git diff {base}...HEAD --stat
+   git diff "$base_sha...$head_sha" --stat
    ```
-4. If zero commits ahead, abort: "No commits to create a PR for."
+4. If zero commits ahead or no effective PR diff, report that no new PR is needed and stop before creating one. A detached HEAD needs an explicitly selected branch; do not invent a branch or commit dirty work.
 
 ### Step 4 — Check Remote & Push
 
-1. Check if branch has a remote tracking ref:
+1. Inspect upstream configuration as a hint:
    ```bash
    git rev-parse --abbrev-ref @{upstream} 2>/dev/null
    ```
-2. Check if local is ahead of remote:
+2. Verify the actual branch in the resolved head repository, independently of a possibly stale or unrelated upstream. Refresh that head ref or inspect its exact `refs/heads/<head_branch>` with `git ls-remote`. Compare the captured committed head to the verified remote SHA in both directions:
    ```bash
-   git rev-list @{upstream}..HEAD --count 2>/dev/null
+   git rev-list --left-right --count "$remote_head_sha...$head_sha"
    ```
-3. If no remote or local is ahead and pushing is not already authorized, ask user:
+   Matching SHAs need no push or configured upstream. Divergence requires explicit reconciliation, never a force-push. If the remote is ahead, stop and reconcile the intended head rather than describing local commits as current remote code.
+3. If the head branch is absent remotely or local is strictly ahead and pushing is not already authorized, ask user:
    - "Branch `{name}` is not pushed (or has {N} unpushed commits). Push now?"
-   - If yes: use `but push {branch}` (GitButler) or `git push -u origin {branch}` (plain git).
+   - If yes: use project GitButler tooling or an ordinary push to the resolved head remote/branch. Do not hardcode origin, force-push a divergent branch, or push the base repository by inference.
    - If no: abort — can't create PR without remote branch.
    If the user already authorized pushing this branch, perform the ordinary push and continue without asking again.
 
 ### Step 5 — Generate PR Content
 
-Analyze ALL commits (not just the latest) via `git log {base}..HEAD --format="%s%n%b"` and `git diff {base}...HEAD`.
+Analyze all captured commits via `git log "$base_sha..$head_sha" --format="%s%n%b"` and `git diff "$base_sha...$head_sha"`. Follow the repository's PR template when present; include only measured behavior and checks actually performed.
 
 #### Title Rules
 - Under 70 chars. Lead with the highest-impact change, not a laundry list.
@@ -147,12 +149,16 @@ None.
 
 ### Step 6 — Create PR
 
+Before creating, query open PRs in the resolved base repository with the exact base branch and head owner/branch. Return the existing URL rather than posting a duplicate. Use a paginated GET such as `gh api --method GET "/repos/$base_repo/pulls" -f state=open -f "base=$base_branch" -f "head=$head_owner:$head_branch" --paginate`; inspect returned repository identity as well as branch names.
+
+Refresh the remote base/head refs before creation. If they differ from the analyzed SHAs, re-evaluate the affected content instead of creating a PR whose description describes another snapshot. A PR request grants no additional push authority. Explicit `--head` prevents gh from silently choosing a fork/push path; when an organization-owned fork cannot be represented by the installed CLI, stop with that limitation or prepare an exact REST-create request within the user's creation authorization.
+
 ```bash
 PR_BODY_FILE="$(mktemp "${TMPDIR:-/tmp}/github-pr-body.XXXXXX")"
 cat > "$PR_BODY_FILE" <<'EOF'
 {body}
 EOF
-gh pr create --base "{base_branch}" --title "{title}" --body-file "$PR_BODY_FILE"
+gh pr create --repo "$base_repo" --base "$base_branch" --head "$head_owner:$head_branch" --title "{title}" --body-file "$PR_BODY_FILE"
 ```
 
 - Keep actual newlines in the body file. Remove only this invocation's temporary file after success; retain it on failure for diagnosis.
@@ -162,7 +168,7 @@ gh pr create --base "{base_branch}" --title "{title}" --body-file "$PR_BODY_FILE
 
 ### Step 7 — Confirm
 
-Report: PR URL, title, base branch, number of commits included.
+Report: PR URL, title, base/head repository and branch, analyzed SHAs, number of commits, and any separately authorized push. Do not imply excluded working-tree changes were included.
 
 ## GitButler Detection
 
@@ -183,7 +189,7 @@ If GitButler project:
 | `gh` not installed | "Install GitHub CLI: https://cli.github.com/" |
 | Not authenticated | "Run `gh auth login` first" |
 | No commits ahead | "No commits to create a PR for" |
-| PR already exists | Show existing PR URL, ask if user wants to update |
+| PR already exists for the exact tuple | Return its URL; update only if separately requested |
 | Push rejected | Show error, suggest pull/rebase |
 | Base branch not found on remote | Ask user to verify base branch name |
 

@@ -32,14 +32,23 @@ commits_json="$(gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/commits" 
   exit 1
 }
 
+if ! printf '%s' "$commits_json" | jq -e -s --arg since "$since_sha" 'flatten | any(.[]; .sha == $since)' >/dev/null; then
+  echo "error: prior review anchor is absent (rebase or incomplete history); follow-up range indeterminate" >&2
+  exit 3
+fi
+meta="$(gh api "/repos/${owner}/${repo}/pulls/${pr}")" || exit 1
+expected="$(jq -r '.commits // empty' <<<"$meta")"
+if [[ -z "$expected" ]] || ! printf '%s' "$commits_json" | jq -e -s --argjson expected "$expected" 'flatten | length == $expected' >/dev/null; then
+  echo "error: commit list is incomplete; use verified Git ancestry for the pinned range" >&2
+  exit 3
+fi
+
 # Walk commits in order; emit those that come strictly AFTER since_sha.
 printf '%s' "$commits_json" | jq -r -s --arg since "$since_sha" '
   flatten
   | (map(.sha) | index($since)) as $idx
   | if $idx == null then
-      # since_sha isn'\''t in the current PR commit list — assume all commits
-      # are follow-ups (defensive: anchor commit was rebased away).
-      .
+      error("prior review anchor absent")
     else
       .[($idx+1):]
     end

@@ -5,7 +5,7 @@ compatibility: Requires Bash 3.2+, git, gh, jq, standard Unix tools and authenti
 license: MIT
 metadata:
   author: HuyNong
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Post PR Review Comment
@@ -69,7 +69,8 @@ Phrasings: "write pr review", "post review comment", "send findings to PR", "com
 
 - Create this invocation's scratch directory with `PR_REVIEW_SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/github-pr-review.XXXXXX")"`. Keep body, payload and comment files inside it. Read helper metadata as data; do not eval/source fetched branch names or other values.
 - If user specified `<N>`, use it. Else: `gh pr view --json number,headRefOid,headRefName 2>/dev/null` for the current branch. Else ask.
-- Capture `head_sha` — used as `commit_id` in the review payload so comments anchor to current code (NOT a stale commit; otherwise GitHub renders them as "Outdated").
+- Capture the target `{repo, pr, base_sha, head_sha}` together and save it in the invocation scratch record. Use the same resolved base/head for code blobs, diff patches, anchor checks and the payload.
+- Capture `head_sha` — used as `commit_id` in the review payload so comments anchor to current code (NOT a stale commit; otherwise GitHub renders them as "Outdated"). Do not analyze a local branch or dirty working tree in place of the pinned PR blob.
 - Run `bash "$SKILL_ROOT/scripts/get-pr-head.sh" <pr>` for owner/repo/head_sha/head_branch in one shot.
 
 ### 2. Locate findings
@@ -105,6 +106,8 @@ For each finding, you MUST have:
 - `start_line` + `start_side` — only for multi-line ranges; same `side` as `line`.
 
 Verify the line exists in the PR diff. Each comment file MUST anchor to a line that lives inside a hunk on the requested `side`; otherwise the GitHub API rejects the whole review with `HTTP 422 "Line could not be resolved"` and refuses to identify the offending comment.
+
+Keep the anchor, finding body and `commit_id` bound to the captured base/head snapshot. If the snapshot changes, re-evaluate affected findings before posting.
 
 **Do not eyeball hunk math.** Use the preflight helper after writing the comment JSONs (Step 6) — see Step 8.5.
 
@@ -143,18 +146,18 @@ The review body (the "Code Review" heading + paragraph) follows `references/top-
 - 🟠 **<N> Important** — should fix
 - 🔵 **<N> Suggestions** — nice-to-have
 
-### Strengths
-- <what works well>
+### Strengths (only when evidenced)
+- <what works well, if a concrete source supports it>
 
 ### Recommendation
-<ship as-is / trim / fix-then-merge / split PR>. Estimated remediation: <X>.
+<ship as-is / trim / fix-then-merge / split PR>. Include a remediation estimate only when supported by the review evidence.
 Reference findings by descriptive name + backtick-wrapped `file:line` (e.g. "Fix the reconnect race (`mqtt.ts:67`)"). NEVER use finding IDs (F1, F2, etc.) — GitHub reorders inline comments by file path. The backtick-wrapped refs are automatically converted to direct clickable links by Step 9.5.
 
 ### Open Questions
 - **<role>**: <question>
 ```
 
-Findings counts are auto-derived from the comments array. Strengths / Recommendation / Open Questions stay at the top level (no anchor) — they're contextual, not line-specific.
+Count the deduplicated inline findings AND unanchored General notes; state that split in the summary. The payload builder escapes JSON but does not derive these counts. Strengths and Open Questions are optional and require evidence. Do not claim merge readiness from publishing findings alone.
 
 ### 8. Assemble payload
 
@@ -177,6 +180,8 @@ JSON shape for `POST /repos/{owner}/{repo}/pulls/{pr}/reviews`:
 }
 ```
 
+The payload `commit_id`, validated diff and reviewed code must all refer to the captured `head_sha` and `base_sha`; record that tuple beside the payload rather than relying on an inferred branch.
+
 Build via `scripts/build-review-payload.sh` (helper to escape multi-line bodies into JSON via `jq`).
 
 ### 8.5. Preflight: validate anchors against the live PR diff
@@ -184,7 +189,7 @@ Build via `scripts/build-review-payload.sh` (helper to escape multi-line bodies 
 Run BEFORE submission. Cheaper to catch out-of-range anchors here than to debug `HTTP 422 "Line could not be resolved"` after the API refuses the whole review.
 
 ```bash
-bash "$SKILL_ROOT/scripts/validate-anchors.sh" <pr> <comments_dir> [<owner> <repo>]
+bash "$SKILL_ROOT/scripts/validate-anchors.sh" <pr> <comments_dir> <owner> <repo> <head_sha>
 ```
 
 The script fetches per-file patches via `gh api /repos/{owner}/{repo}/pulls/{pr}/files` (the same source GitHub uses for line resolution — unaffected by local `gh` output rewriters like `rtk`), extracts `@@` hunk ranges, and verifies each comment's `line` / `start_line` falls inside a hunk on the requested `side`. Also enforces `start_side == side` for multi-line comments.
@@ -193,18 +198,23 @@ Exit codes:
 - `0` — all comments OK, safe to submit
 - `1` — one or more anchors out of range; offenders printed to stderr with the actual hunk ranges so you can re-anchor without guessing
 - `2`/`3` — missing deps or API failure
+- `5` — snapshot drift; refresh findings and anchors before any write
 
 When a comment fails preflight: re-anchor it to a line inside a hunk listed in the error output, or move the finding to the top-level body's "General notes" section.
 
 ### 9. Submit + confirm
 
+Immediately before submission, re-read PR metadata and compare `{repo, pr, base_sha, head_sha}` with the saved snapshot. On drift, stop the write, refresh the affected code/diff/findings and revalidate anchors. Renew posting confirmation only when the approved body or target changes; retain the prior confirmation for an unchanged approved body/target after affected re-evaluation.
+
+Show the final summary, every inline body/anchor, General notes, identity and snapshot for authorization, reusing an explicit instruction to publish these unchanged findings. After authorization, seed an owned receipt with the evaluated source IDs/hashes/timestamps and snapshot as specified in [delivery-receipts.md](references/delivery-receipts.md). Use it for both review creation and the link pass. A receipt records execution; it never grants permission.
+
 ```bash
-bash "$SKILL_ROOT/scripts/post-review.sh" <owner> <repo> <pr> <payload.json>
+bash "$SKILL_ROOT/scripts/post-review.sh" <owner> <repo> <pr> <payload.json> <receipt.json>
 ```
 
-The script wraps `gh api POST /repos/{owner}/{repo}/pulls/{pr}/reviews --input <payload.json>` and on failure prints the full GitHub response body to stderr (between `--- response body ---` markers) — so messages like `{"errors":["Line could not be resolved"]}` reach the caller instead of being masked behind a bare `HTTP 422`. Exit codes: `0` success, `4` API failure (body printed), `3` success-but-no-html_url.
+The receipt path enables identity/snapshot/body/target binding, remote read-back and recovery. On success it returns `reply_id` and `html_url`; the former is the review ID. Exit codes and unknown-write reconciliation are defined in the receipt reference. Without the optional receipt, the legacy helper remains a one-shot operation and prints API errors; never use that mode to retry a partial batch.
 
-Return the resulting review URL plus a one-line summary: "Posted N findings (X Critical / Y Important / Z Suggestion) as review <id>."
+Retain the resulting review ID/URL immediately. Report creation separately from link completion; do not declare the batch complete before Step 9.5 succeeds.
 
 Extract the `review_id` from the response (parse from the `html_url` or the JSON `.id` field) — needed for the next step.
 
@@ -213,26 +223,27 @@ Extract the `review_id` from the response (parse from the `html_url` or the JSON
 After successful submission, replace backtick-wrapped `file:line` references in the review body with direct GitHub links to the inline comments. This gives readers one-click navigation from the summary to each finding.
 
 ```bash
-bash "$SKILL_ROOT/scripts/link-findings-in-body.sh" <owner> <repo> <pr> <review_id> <comments_dir>
+bash "$SKILL_ROOT/scripts/link-findings-in-body.sh" <owner> <repo> <pr> <review_id> <comments_dir> <receipt.json>
 ```
 
 The script:
-1. Reads local comment JSONs from `<comments_dir>` for `{path, line}` metadata (GitHub's API often returns `line: null` for position-based comments)
-2. Fetches posted comment URLs via `GET /reviews/{id}/comments`
-3. Matches local → API comments by path + body content substring
-4. Builds a lookup map of `basename:line` → `html_url`
-5. Replaces backtick refs like `` `mqtt.ts:67` `` in the body with markdown links [`mqtt.ts:67`](html_url)
-6. PUTs the patched body back
+1. Reads complete local bodies and `{path, side, line, start_side, start_line}` anchors.
+2. Slurps all pages from `GET /reviews/{id}/comments`; if anchors are absent, hydrates response IDs from PR-wide comments.
+3. Matches exactly by full body and full anchor; ambiguous items remain unresolved.
+4. Adds only unique full-path/suffix aliases and replaces literal backtick refs; existing links are left unchanged.
+5. PUTs the patched body back and reports `review_id`, matched and unresolved items. It never creates a second review.
 
 **Prerequisites:**
 - The top-level body (Step 7) MUST reference findings using backtick-wrapped `file:line` patterns (e.g. `` `mqtt.ts:67` ``) so the script can match and replace them.
 - Run BEFORE Step 10 cleanup — the script needs the comment JSON files.
 
-Exit codes: `0` success (or no replacements needed), `1` auth/arg failure, `2` API fetch failure, `3` API update failure.
+Exit `0` means the link pass ran; inspect `unresolved` as well. Legacy errors use `1`/`2`/`3`; receipt-backed updates also use the receipt reference's binding, unknown-write and lock exits. Resume with the saved review ID and only unfinished items. If POST succeeded but linking failed, do not create a second review.
+
+If unresolved items remain, keep the scratch body/comments and review ID for a later link-only resume; do not report the batch as fully linked.
 
 ### 10. Cleanup
 
-After submission and body-linking both succeed, remove only the scratch directory created by this invocation:
+After submission and body-linking finish with no unresolved items, report the URL, inline/General-note counts and completion state. Retain the private receipt and IDs for cross-session recovery/audit; remove only disposable scratch files after preserving that record outside the scratch directory:
 
 ```bash
 if [[ -n "${PR_REVIEW_SCRATCH:-}" && -d "$PR_REVIEW_SCRATCH" ]]; then
@@ -240,24 +251,23 @@ if [[ -n "${PR_REVIEW_SCRATCH:-}" && -d "$PR_REVIEW_SCRATCH" ]]; then
 fi
 ```
 
-Only clean up on success (exit 0 from `post-review.sh`). On failure, keep artifacts for debugging.
+On snapshot drift, API failure or unresolved linking, keep artifacts for reconciliation; never create a duplicate review to recover a link pass.
 
 ## Hard rules
 
 - **Default event is `COMMENT`.** Use `REQUEST_CHANGES` or `APPROVE` only when the user explicitly authorizes that event; reuse authorization already given for this review.
+- **Do not fabricate summary content.** Findings counts account for inline comments and General notes; Strengths and estimates are optional and require evidence.
 - **Never invent paths or line numbers.** If a finding cites `foo.ts:42` but the file or line doesn't exist in the PR diff, move it to the top-level "General notes" section or drop it.
 - **Never use finding IDs (F1, F2, etc.) to cross-reference findings.** GitHub displays inline comments ordered by file path, not payload order — so numbered IDs are meaningless to the reader. Always reference findings by descriptive name + `file:line` (e.g. "Fix the MQTT reconnect race (`mqtt.ts:67`) and store sync gap (`use-mqtt-notification-listener.ts:104`) before merge").
 - **Never embed secrets.** Strip tokens, internal URLs, real user data from any quoted code snippets.
 - **Suggestion blocks must apply cleanly.** A bad suggestion (wrong indentation, extra characters) shows "This suggestion cannot be applied" and looks unprofessional. When in doubt, omit the suggestion block.
-- **One review per session per PR.** Before posting, check `gh api /repos/{o}/{r}/pulls/{n}/reviews --jq '.[].user.login'` for an existing review by the current user — if found, ask whether to add a new review (legit for follow-ups) or amend the existing comments individually.
+- **Reconcile the approved batch before a new write.** Read all review pages for the active identity and compare head, full body and complete inline set. A unique exact match is a resume candidate; an older unrelated review is not a blanket duplicate and does not cancel an authorized new batch. Multiple matches or an unreconciled unknown outcome stop automatic retry. Reuse the receipt's posted review ID for link-only recovery.
 - **Use the project's reviewer identity.** `gh auth status` shows whose login the review is posted under. Make sure that's the right account.
 
 ## Output length
 
-- Critical: 2–6 items typical. >8 → PR is broken; recommend trim/split in Recommendation.
-- Important: 4–12 items typical.
-- Each inline body: 3–8 lines max (badge + problem + optional suggestion).
-- Top-level body: ≤ ~30 lines. Findings details belong inline, not in the summary.
+- Size output to the evidence. Include every in-scope finding with impact, proof and a useful next step; do not impose count or line quotas.
+- Keep orientation in the summary and detailed evidence inline or in General notes. Omit unsupported praise and estimates.
 
 ## Failure modes
 

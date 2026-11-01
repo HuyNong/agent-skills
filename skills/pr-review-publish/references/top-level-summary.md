@@ -14,12 +14,12 @@ The body posted as the review's overall message (above the inline comments). Kee
 - 🟠 **<N> Important** — should fix
 - 🔵 **<N> Suggestions** — nice-to-have
 
-### Strengths
-- <what works well>
-- <pattern worth keeping>
+### Strengths (only when evidenced)
+- <what works well, if a concrete source supports it>
+- <pattern worth keeping, if observed>
 
 ### Recommendation
-<ship as-is / trim scope / fix-then-merge / split PR>. Estimated remediation: <X hours/days>.
+<ship as-is / trim scope / fix-then-merge / split PR>. Add an estimate only when supported by review evidence.
 
 ### Open Questions
 - **<role>** (Backend / Product / Frontend Lead): <question>
@@ -32,10 +32,11 @@ The body posted as the review's overall message (above the inline comments). Kee
 ## Rules
 
 - Start at `##` not `#`. GitHub renders `#` as oversized.
-- Total length ≤ 30 lines. If longer, you're putting finding details in the wrong place — move them inline.
-- Counts in **Findings** must match the number of inline comments by severity. The skill auto-derives these.
-- **Strengths** is required — pure-negative reviews provoke defensive responses.
+- Keep the summary proportional to the review; do not omit findings to satisfy a line cap.
+- Counts must account for inline findings and any unanchored findings in **General notes**, with the split stated clearly.
+- **Strengths** is optional and must never be invented to make a review positive.
 - **Recommendation** is required — gives a clear next-action.
+- Do not claim a remediation estimate without evidence; omit it when unknown.
 - **Never use finding IDs (F1, F2, etc.) in the summary or recommendation.** GitHub reorders inline comments by file path — numbered IDs lose their meaning. Reference findings by descriptive name + `file:line` instead (e.g. "Fix the reconnect race (`mqtt.ts:67`) before merge").
 - **Open Questions** only when there's genuine ambiguity needing stakeholder input. Skip if no questions.
 - **General notes** only when a finding can't be anchored (file renamed in diff, cross-cutting concern, etc.). Most findings should be inline.
@@ -73,5 +74,5 @@ Trim scope to **read-only notifications + tabs refactor**: remove the `Notificat
 - Mid-sentence severity badges in the summary. Badges belong on the per-finding inline comments, not the summary.
 - Inlining the full text of every finding into the summary. The inline comments ARE the findings — the summary is just the orientation.
 - "TL;DR" / "Executive summary" pleasantries. Get straight to verdict.
-- Skipping Strengths "to save space". The 3 lines of positive framing are what makes the Critical items land.
+- Inventing Strengths or remediation estimates to fill a template. Omit unsupported sections.
 - Using finding IDs like "F1", "F2" to reference inline comments. GitHub reorders by file path — the reader can't map IDs to comments. Use descriptive name + `file:line` instead.

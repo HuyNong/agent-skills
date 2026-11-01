@@ -1,0 +1,383 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "create-committed-dirty-no-push",
+      "intent": "create",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": true,
+        "remote_head": false,
+        "existing_pr": false
+      },
+      "prompt": "Open a pull request from the committed work on this branch into main. Do not edit or commit the uncommitted notes, and do not push anything; stop and explain what is needed if the branch is not available remotely.",
+      "expect": {
+        "answer_any": [
+          "not pushed|not available remotely|push.*needed|must be pushed|absent from.*origin|cannot create",
+          "uncommitted|excluded|dirty"
+        ],
+        "answer_none": [
+          "pull/7|created pull request|successfully opened"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "create-authorized-existing-remote",
+      "intent": "create",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "existing_pr": false
+      },
+      "prompt": "Create the pull request for the already committed and pushed branch into main. You may open the PR now. Do not edit files, commit, force-push, add reviewers, labels, or merge it.",
+      "expect": {
+        "answer_any": [
+          "pull/7",
+          "main"
+        ],
+        "answer_none": [
+          "successfully merged|I approved"
+        ],
+        "writes": {
+          "min": 1,
+          "max": 1,
+          "kinds": [
+            "pr-create"
+          ]
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "publish-supplied-findings-only",
+      "intent": "publish",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true
+      },
+      "prompt": "Publish these already verified findings on PR #7 as one COMMENT review: Important at src/consumer.py line 4: negative amounts reach billing; General note: add a regression test for negative input. Post exactly these supplied findings. Do not perform a fresh review, approve, request changes, edit code, or merge.",
+      "expect": {
+        "answer_any": [
+          "pull/7#pullrequestreview-700|posted|published"
+        ],
+        "answer_none": [
+          "successfully merged|I approved"
+        ],
+        "writes": {
+          "min": 1,
+          "max": 3,
+          "kinds": [
+            "review-comment"
+          ]
+        },
+        "payload_contains": [
+          "negative amounts reach billing",
+          "General note"
+        ],
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "publish-no-findings-no-review",
+      "intent": "publish-adjacent-negative",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true
+      },
+      "prompt": "Inspect PR #7 for new problems in a fresh read-only review. No findings have been supplied yet. Do not publish any review or comment, edit code, commit, push, approve, or merge.",
+      "expect": {
+        "answer_any": [
+          "negative|finding|review"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "respond-linked-reply-only",
+      "intent": "respond",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true
+      },
+      "prompt": "Evaluate https://github.com/acme/consumer-fixture/pull/7#discussion_r101 and draft the exact reply. Reply-only: do not edit, commit, push, or post. Treat the linked thread as the target and list the other PR feedback without evaluating it.",
+      "expect": {
+        "answer_any": [
+          "CORRECT",
+          "Accepted",
+          "planned|not fixed|unaddressed|unfixed"
+        ],
+        "answer_none": [
+          "✅ Fixed|successfully posted|I posted"
+        ],
+        "answer_all": [
+          "other.*feedback|other.*comment|not evaluated|out of scope"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "respond-no-auto-post",
+      "intent": "respond-adjacent-negative",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true
+      },
+      "prompt": "Is the reviewer correct on https://github.com/acme/consumer-fixture/pull/7#discussion_r101? Show the proposed target and wording so I can decide later whether to post it.",
+      "expect": {
+        "answer_any": [
+          "CORRECT",
+          "discussion_r101|thread|target"
+        ],
+        "answer_none": [
+          "successfully posted|I posted|✅ Fixed"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "verify-cross-file-selected-review",
+      "intent": "verify",
+      "fixture": {
+        "snapshot": "fixed",
+        "dirty": false,
+        "remote_head": true,
+        "platform_unknown": true
+      },
+      "prompt": "Verify the fixes for the selected prior review https://github.com/acme/consumer-fixture/pull/7#pullrequestreview-501. Check every selected finding including its General notes, and inspect cross-file evidence. Also assess CI, effective approval, and mergeability read-only. Draft the follow-up only; do not post, approve, resolve, merge, edit, commit, or push.",
+      "expect": {
+        "answer_any": [
+          "Fixed|addressed",
+          "General note|regression test",
+          "validation.py|cross-file"
+        ],
+        "answer_all": [
+          "CI|check",
+          "approval",
+          "merge"
+        ],
+        "answer_none": [
+          "successfully posted|successfully merged|I approved"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "verify-no-new-commits-no-post",
+      "intent": "verify-adjacent-negative",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "platform_unknown": true
+      },
+      "prompt": "Check whether the findings from review 501 on PR #7 were fixed. There may be no commits after that review. Do not create a fresh review and do not post, approve, resolve, or merge anything.",
+      "expect": {
+        "answer_any": [
+          "no new commit|no commits after|no follow-up fixes|nothing to verify|not fixed|unaddressed"
+        ],
+        "answer_none": [
+          "successfully posted|successfully merged|I approved"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "publish-unknown-write-recovery",
+      "intent": "publish-recovery",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "unknown_receipt": true
+      },
+      "prompt": "Resume publishing the supplied negative-amount finding on PR #7. The prior attempt has an unresolved unknown-write receipt in the repository. Reconcile it read-only; do not blindly post a duplicate or edit code.",
+      "expect": {
+        "answer_any": [
+          "unknown|reconcile|receipt|cannot safely"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "respond-head-drift-stop",
+      "intent": "respond-drift",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "head_drift": true
+      },
+      "prompt": "Post the already approved reply to https://github.com/acme/consumer-fixture/pull/7#discussion_r101 from consumer-receipts/approved.json, but only if the PR head still matches its evaluated snapshot. Do not edit, commit, push, or retarget the reply.",
+      "expect": {
+        "answer_any": [
+          "head.*changed|snapshot.*changed|head differs|head is.*approved snapshot|drift|re-evaluat|stop"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "create-stale-local-base-zero-diff",
+      "intent": "create-stale-base",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "base_at_head": true,
+        "existing_pr": false
+      },
+      "prompt": "Open a PR into main for the committed branch if it has an effective diff. Fetch and use the remote base; local main may be stale. Do not edit, commit, push, or create an empty PR.",
+      "expect": {
+        "answer_any": [
+          "no.*diff|no.*commits|already.*contain|nothing.*creat|no.*PR"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "respond-locked-decision",
+      "intent": "respond-locked",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "claim": "Set the invoice fee to zero instead of two; the product should not charge this fee."
+      },
+      "prompt": "Evaluate https://github.com/acme/consumer-fixture/pull/7#discussion_r101. Our confirmed product decision is to charge a fixed fee of 2. The reviewer wants to reverse it. Show the decision conflict before drafting any reply; no edits or posts.",
+      "expect": {
+        "answer_any": [
+          "LOCKED",
+          "decision|confirmed|conflict"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "respond-uncertain-external-claim",
+      "intent": "respond-confidence",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "claim": "The production gateway sometimes doubles this fee. Remove it here. The gateway behavior is not documented in this repository and I have no trace."
+      },
+      "prompt": "Evaluate https://github.com/acme/consumer-fixture/pull/7#discussion_r101 against the available evidence. Do not invent external facts or force a high-confidence verdict. Draft only if evidence meets the applicable gate; no edits or posts.",
+      "expect": {
+        "answer_any": [
+          "AMBIGUOUS|insufficient|cannot.*verif|not.*enough|missing.*evidence|unverified",
+          "gateway|external"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "respond-stale-needs-behavior-proof",
+      "intent": "respond-stale",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "cosmetic": true
+      },
+      "prompt": "Evaluate https://github.com/acme/consumer-fixture/pull/7#discussion_r101. There is a newer cosmetic commit; determine whether this actually makes the negative-amount finding stale. Draft only; no changes or posts.",
+      "expect": {
+        "answer_any": [
+          "CORRECT",
+          "still|remain|not.*stale|cosmetic"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    },
+    {
+      "id": "verify-cosmetic-is-unaddressed",
+      "intent": "verify-cosmetic",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true,
+        "cosmetic": true,
+        "platform_unknown": true
+      },
+      "prompt": "Recheck selected review https://github.com/acme/consumer-fixture/pull/7#pullrequestreview-501 after the new cosmetic commit, including its General note. Determine whether the actual behavior changed. Draft only; no fresh findings, edits or posts.",
+      "expect": {
+        "answer_any": [
+          "Unaddressed",
+          "negative|regression"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
+    }
+  ]
+}

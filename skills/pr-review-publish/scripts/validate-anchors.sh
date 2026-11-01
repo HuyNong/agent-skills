@@ -30,6 +30,7 @@ pr="${1:?pr number required}"
 comments_dir="${2:?comments_dir required}"
 owner="${3:-}"
 repo="${4:-}"
+expected_head="${5:-}"
 
 [[ -d "$comments_dir" ]] || { echo "error: comments_dir not a directory: $comments_dir" >&2; exit 2; }
 command -v jq >/dev/null || { echo "error: jq required" >&2; exit 2; }
@@ -45,6 +46,11 @@ if [[ -z "$owner" || -z "$repo" ]]; then
   repo="$(jq -r '.name' <<<"$repo_meta")"
 fi
 
+if [[ -n "$expected_head" ]]; then
+  live_head="$(gh api "/repos/$owner/$repo/pulls/$pr" --jq '.head.sha')" || exit 3
+  [[ "$live_head" == "$expected_head" ]] || { echo "error: PR head changed before anchor validation" >&2; exit 5; }
+fi
+
 # Pull every file's patch in one paginated call. Result schema per file:
 #   { "filename": "...", "patch": "@@ -A,B +C,D @@\n ... \n@@ ..." }
 files_json="$(mktemp "${TMPDIR:-/tmp}/pr-files.XXXXXX")"
@@ -53,6 +59,10 @@ trap 'rm -f "$files_json"' EXIT
 if ! gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/files" >"$files_json" 2>/dev/null; then
   echo "error: gh api /repos/${owner}/${repo}/pulls/${pr}/files failed" >&2
   exit 3
+fi
+if [[ -n "$expected_head" ]]; then
+  live_head="$(gh api "/repos/$owner/$repo/pulls/$pr" --jq '.head.sha')" || exit 3
+  [[ "$live_head" == "$expected_head" ]] || { echo "error: PR head changed during anchor validation" >&2; exit 5; }
 fi
 
 # Slurp all pages before looking up the patch, producing one result per path.

@@ -10,14 +10,18 @@
 # Exit 0 if all succeeded, exit 1 if any failed.
 
 set -euo pipefail
+umask 077
 
 owner="${1:?owner required}"
 repo="${2:?repo required}"
 pr="${3:?pr number required}"
 verdicts_dir="${4:?verdicts directory required}"
+receipt_file="${5:-}"
 
 command -v gh >/dev/null || { echo "error: gh required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "error: jq required" >&2; exit 2; }
+receipt_payload=""
+trap 'rm -f -- "${receipt_payload:-}"' EXIT
 
 if [ ! -d "$verdicts_dir" ]; then
   echo "error: verdicts directory not found: $verdicts_dir" >&2
@@ -42,6 +46,23 @@ for f in "${files[@]}"; do
     continue
   fi
   comment_id=$(jq -r '.in_reply_to' "$f")
+
+  if [[ -n "$receipt_file" ]]; then
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/review-receipt.sh"
+    # Local evidence and status fields are not part of the public API payload.
+    receipt_payload="$(mktemp "${TMPDIR:-/tmp}/pr-verdict-payload.XXXXXX")"
+    jq '{body,in_reply_to}' "$f" > "$receipt_payload"
+    if result="$(receipt_post "$receipt_file" verify-fixes "$owner" "$repo" "$pr" "reply-$comment_id" "/repos/$owner/$repo/pulls/$pr/comments" "$receipt_payload")"; then
+      echo "ok $comment_id $result"
+      ok=$((ok + 1))
+    else
+      status=$?
+      echo "fail $comment_id receipt_status=$status"
+      fail=$((fail + 1))
+    fi
+    rm -f -- "$receipt_payload"; receipt_payload=""
+    continue
+  fi
 
   tmpfile=$(mktemp)
   jq '{body, in_reply_to}' "$f" > "$tmpfile"

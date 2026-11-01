@@ -4,8 +4,8 @@ Before classifying a verdict, run these checks. Skip any step only if it's clear
 
 ## 1. Read the current code at `path:line` (always)
 
-- `Read` the file at the cited path, focused around the line range from `fetch-comment.sh`.
-- Compare what you see to `diff_hunk` in the comment payload. If they differ, the comment is anchored to an older commit — possibly `STALE`.
+- Read the blob at the evaluated PR head (`git show <head_sha>:<path>`), focused around the cited range. A dirty or unrelated checkout is not evidence of code on the PR.
+- Compare with `diff_hunk` and trace whether the claimed defect still exists. An older anchor or changed line alone does not establish STALE; the concern must have been addressed in the later state.
 - Quote 2–4 lines of current code in your verification log so the user can sanity-check without re-reading the file.
 
 ## 2. Grep for related call sites / cross-file claims

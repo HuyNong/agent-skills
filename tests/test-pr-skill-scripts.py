@@ -6,6 +6,16 @@ import unittest
 
 from script_fixtures import PUBLISH, RESPOND, ROOT, VERIFY, ScriptCase
 from feedback_coverage_contracts import FeedbackCoverageContracts
+from inline_membership_contracts import InlineMembershipContracts
+from publish_link_contracts import PublishLinkContracts
+from publish_recovery_contracts import PublishRecoveryContracts
+from reply_recovery_contracts import ReplyRecoveryContracts
+from review_coverage_contracts import ReviewCoverageContracts
+from readiness_contracts import ReadinessContracts
+from consumer_harness_contracts import ConsumerHarnessContracts
+from review_boundary_contracts import ReviewBoundaryContracts
+from consumer_case_contracts import ConsumerCaseContracts
+from git_guard_contracts import GitGuardContracts
 
 FILES = "/repos/acme/demo/pulls/7/files"
 COMMENTS = "/repos/acme/demo/pulls/7/comments"
@@ -71,7 +81,8 @@ class Contracts(ScriptCase):
     def test_extract_paginated_findings_and_unicode(self):
         comment = dict(FINDING, id=42, pull_request_review_id=11, original_line=2,
                        html_url="https://github.com/acme/demo/pull/7#discussion_r42")
-        self.respond({"GET " + COMMENTS: {"_stdout": json.dumps([comment]) + "\n" + json.dumps([dict(comment, id=43)])}})
+        self.respond({"GET " + REVIEWS + "/11": {"id": 11, "body": "General notes"},
+                      "GET " + COMMENTS: {"_stdout": json.dumps([comment]) + "\n" + json.dumps([dict(comment, id=43)])}})
         output = self.work / "findings"
         result = self.run_script(VERIFY, "extract-findings.sh", 7, 11, output, "acme", "demo")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -82,8 +93,8 @@ class Contracts(ScriptCase):
     def test_extract_empty_and_malformed_response(self):
         for response, success in [([], True), ({"_stdout": "{"}, False)]:
             with self.subTest(response=response):
-                self.respond({"GET " + COMMENTS: response})
-                result = self.run_script(VERIFY, "extract-findings.sh", 7, 11, self.work / "out", "acme", "demo")
+                self.respond({"GET " + REVIEWS + "/11": {"id": 11, "body": ""}, "GET " + COMMENTS: response})
+                result = self.run_script(VERIFY, "extract-findings.sh", 7, 11, self.work / ("empty" if success else "malformed"), "acme", "demo")
                 self.assertEqual(result.returncode == 0, success, result.stderr)
 
     def test_prior_review_ignores_summary_and_thread_reply_reviews(self):

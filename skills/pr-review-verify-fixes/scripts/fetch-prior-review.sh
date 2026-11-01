@@ -27,6 +27,7 @@ set -euo pipefail
 pr="${1:?pr number required}"
 owner="${2:-}"
 repo="${3:-}"
+selected_review="${4:-}"
 
 command -v gh >/dev/null || { echo "error: gh required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "error: jq required" >&2; exit 2; }
@@ -41,25 +42,38 @@ if [[ -z "$owner" || -z "$repo" ]]; then
 fi
 
 current_user="$(gh api /user --jq '.login' 2>/dev/null || true)"
-[[ -n "$current_user" ]] || { echo "error: cannot identify current user — run 'gh auth login'" >&2; exit 1; }
+[[ -n "$current_user" && "$current_user" != null ]] || { echo "error: cannot identify current user — run 'gh auth login'" >&2; exit 1; }
 
 # Thread replies get their own review records; only root findings identify a review.
 reviews_json="$(gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/reviews" 2>/dev/null)" || {
   echo "error: gh api /pulls/${pr}/reviews failed" >&2
   exit 1
 }
+if ! printf '%s' "$reviews_json" | jq -e -s 'length > 0 and all(.[];
+    type == "array" and all(.[]; type == "object" and (.id | type == "number") and
+      (.user.login | type == "string" and length > 0) and
+      (.body | type == "string" or . == null) and
+      (.submitted_at | type == "string" or . == null)))' >/dev/null; then
+  echo "error: malformed prior review pages; collection incomplete" >&2
+  exit 1
+fi
 
 finding_reviews="$(gh api --paginate "/repos/${owner}/${repo}/pulls/${pr}/comments" \
-  | jq -s '[flatten | .[] | select(.in_reply_to_id == null)
-             | .pull_request_review_id | select(. != null)] | unique')" || {
-  echo "error: cannot load prior inline findings" >&2
+  | jq -e -s 'if length > 0 and all(.[]; type == "array" and all(.[];
+        type == "object" and (.pull_request_review_id | type == "number") and
+        (.in_reply_to_id | . == null or type == "number"))) then
+      [add[] | select(.in_reply_to_id == null) | .pull_request_review_id] | unique
+      else error("malformed inline pages") end')" || {
+  echo "error: malformed or unavailable prior inline findings; collection incomplete" >&2
   exit 1
 }
 
-prior="$(printf '%s' "$reviews_json" | jq -s --arg login "$current_user" --argjson ids "$finding_reviews" '
+prior="$(printf '%s' "$reviews_json" | jq -s --arg login "$current_user" --arg selected "$selected_review" --argjson ids "$finding_reviews" '
   flatten
   | map(select(.user.login == $login and .submitted_at != null))
-  | map(select(.id as $id | $ids | index($id) != null))
+  | map(select(if $selected != "" then (.id | tostring) == $selected
+      else (.id as $id | $ids | index($id) != null) or
+        (((.body // "") | length > 0) and (((.body // "") | startswith("## Follow-up Review")) | not)) end))
   | sort_by(.submitted_at)
   | last
 ' 2>/dev/null)"

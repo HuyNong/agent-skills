@@ -9,7 +9,7 @@ This independent project is not affiliated with, sponsored by, or endorsed by Gi
 | `pr-create` | Create a PR from committed branch changes, with a structured description and an authorized push when needed. |
 | `pr-review-publish` | Publish existing review findings as one summary and anchored inline comments. |
 | `pr-review-respond` | Verify feedback, automatically choose its thread or diff anchor, and draft a reply for posting confirmation. Apply/commit fixes when authorized. |
-| `pr-review-verify-fixes` | Check new commits against prior findings and publish an authorized follow-up with per-finding verdicts. |
+| `pr-review-verify-fixes` | Verify the complete selected review, assess CI/approval/mergeability read-only, and draft or publish an authorized follow-up. |
 
 Use your normal code-review workflow to produce new findings. Publishing findings, responding to a reviewer and checking later fixes are separate intents.
 
@@ -78,9 +78,13 @@ Respond selects reply placement automatically: the original inline thread first,
 
 Respond inventories review summaries, inline threads/replies and general PR comments across all pages. By default it evaluates the linked comment (all concerns and thread context) or the linked review (all its findings), and lists other PR feedback without evaluating or fixing it. A bare PR URL or explicit all-PR request selects the full PR. Complete bodies and a source-to-finding ledger prevent silent omissions and duplicate summary/inline findings. Approval previews include coverage totals; incomplete collection or unevaluated selected findings stop the completed-batch workflow. Reading the inventory grants no additional permission to evaluate unrelated findings, edit, commit, push or post.
 
+A correct review uses **Accepted** while its fix is planned or verified only locally. **Fixed** requires verification in the actual PR snapshot. Verification follows callers, dependencies, configuration and moved code; an unchanged anchored file does not prove a finding is unaddressed. The verifier accounts for summary-only findings and thread context, then reports selected-finding results separately from platform readiness. Inaccessible rules, pending CI or unknown mergeability prevent a ready recommendation.
+
 ## Resource handling
 
 Agents resolve bundled helpers relative to the loaded skill's directory and keep their working directory in the consuming repository. Skills do not depend on Claude-specific global paths or another installed skill. Temporary review artifacts belong to the current invocation; failed operations retain artifacts and report partial results instead of retrying blindly.
+
+Posting workflows use private delivery receipts bound to identity, repository, PR, evaluated snapshot, source manifest, body and target. A posted summary and its replies/link pass are separate items: resume skips proven successes and reconciles unknown writes before retrying. An ambiguous or unseen result after a lost response stays unknown. Keep the receipt across sessions; it records delivery, not authorization or an exactly-once guarantee. Legacy helper calls without the optional receipt remain one-shot.
 
 ## Development and validation
 
@@ -102,6 +106,21 @@ bash tests/test-skill-installation.sh
 ```
 
 The Python suite uses isolated GitHub response fixtures for parser/error contracts and does not contact GitHub. The installer suite invokes the real CLI in disposable Git projects, tests each skill and the collection in default/copy modes, checks licenses/resources and removes the disposable installs. It leaves existing global skills untouched.
+
+Run matched Codex consumers against a preserved baseline and a frozen candidate:
+
+```bash
+python3 tests/run-pr-skill-consumers.py --runtime codex \
+  --cases tests/pr-skill-consumer-cases.json \
+  --original /path/to/baseline --candidate /path/to/candidate \
+  --output /path/to/new-owned-results
+```
+
+The runner uses fresh disposable Git projects, the same fixture/prompt/runtime configuration for each pair, and an offline GitHub transport that logs simulated writes. It excludes expected answers from consumer workspaces, retains traces and reports the effective model as unknown when the runtime does not expose it. These runs test agent behavior in fixtures; they do not prove live GitHub delivery. `--runtime claude` records the user's pending Claude check without claiming an execution.
+
+Use `--cases tests/pr-skill-branch-cases.json` for the additional fork/upstream, detached-HEAD and divergent-branch consumers. Runtime quota/authentication failures leave evaluation incomplete and stop queued cases; they are not passing skill evidence.
+
+For a case explicitly authorizing an unpublished branch push, opt in with `--simulate-push`. The fixture pushes committed objects to an isolated local bare repository and records the actual remote SHA; it rejects force pushes and never uses GitHub's transport. Use it only for the intended authorized-push case.
 
 CI in [validate-skills.yml](.github/workflows/validate-skills.yml) runs on macOS and Linux, validates metadata with the official `skills-ref` reference tool, checks shell syntax, runs regressions and exercises installation. Development validation tools are not runtime dependencies of installed skills.
 

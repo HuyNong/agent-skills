@@ -13,14 +13,16 @@ VERIFY = "pr-review-verify-fixes"
 RESPOND = "pr-review-respond"
 
 GH_FIXTURE = r'''#!/usr/bin/env python3
-import json, pathlib, subprocess, sys
+import json, pathlib, subprocess, sys, time
 from os import environ
 args = sys.argv[1:]
 if args[:2] == ["auth", "status"]:
     sys.exit(0)
-if not args or args[0] != "api":
+is_view = args[:2] == ["pr", "view"]
+is_checks = args[:2] == ["pr", "checks"]
+if not args or (args[0] != "api" and not is_view and not is_checks):
     sys.exit("unexpected gh command in unit fixture")
-endpoint = next(a for a in args if a.startswith(("/", "repos/")))
+endpoint = "/fixture/pr/view" if is_view else "/fixture/pr/checks" if is_checks else next(a for a in args if a.startswith(("/", "repos/")))
 method = next((args[args.index(flag) + 1] for flag in ["--method", "-X"] if flag in args), "GET")
 key = method + " /" + endpoint.lstrip("/")
 log = pathlib.Path(environ["TEST_GH_LOG"])
@@ -36,6 +38,8 @@ response = responses.get(key + "#" + str(number), responses.get(key))
 if response is None:
     sys.exit("unexpected API call: " + key)
 status = response.get("_status", 0) if isinstance(response, dict) else 0
+if isinstance(response, dict) and response.get("_delay"):
+    time.sleep(response["_delay"])
 output = response.get("_stdout", json.dumps(response)) if isinstance(response, dict) else json.dumps(response)
 if "--jq" in args and not status:
     result = subprocess.run(["jq", "-r", args[args.index("--jq") + 1]], input=output, text=True, capture_output=True)
@@ -44,7 +48,7 @@ if "--jq" in args and not status:
     sys.exit(result.returncode)
 sys.stdout.write(output)
 if status:
-    sys.stderr.write("fixture HTTP failure\n")
+    sys.stderr.write(response.get("_stderr", "fixture HTTP failure\n"))
 sys.exit(status)
 '''
 

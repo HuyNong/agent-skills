@@ -12,8 +12,15 @@ owner="${1:?owner required}"
 repo="${2:?repo required}"
 pr="${3:?pr required}"
 payload="${4:?payload.json required}"
+receipt_file="${5:-}"
 
 [[ -r "$payload" ]] || { echo "error: payload not readable: $payload" >&2; exit 2; }
+
+if [[ -n "$receipt_file" ]]; then
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/review-receipt.sh"
+  receipt_post "$receipt_file" publish "$owner" "$repo" "$pr" review "/repos/$owner/$repo/pulls/$pr/reviews" "$payload" "$(jq -r '.commit_id // empty' "$payload")"
+  exit $?
+fi
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "error: gh not authenticated. Run: gh auth login" >&2; exit 1
@@ -23,7 +30,8 @@ fi
 # `gh api` writes the response JSON to stdout regardless of success/failure,
 # and exits non-zero on HTTP >= 400.
 response_file="$(mktemp -t gh-review-response.XXXXXX)"
-trap 'rm -f "$response_file"' EXIT
+keep_response=true
+trap 'if [[ "$keep_response" == false ]]; then rm -f "$response_file"; else echo "response_file=$response_file" >&2; fi' EXIT
 
 if ! gh api \
     --method POST \
@@ -45,3 +53,4 @@ html_url="$(jq -r '.html_url // empty' "$response_file" 2>/dev/null || true)"
   exit 3
 }
 echo "html_url=${html_url}"
+keep_response=false

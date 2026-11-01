@@ -30,7 +30,8 @@ Prepend every reply body with the matching badge on its own line, followed by a 
 
 | Verdict | Badge |
 |---------|-------|
-| CORRECT | `![Fixed](https://img.shields.io/badge/Status-Fixed-brightgreen)` |
+| CORRECT, not verified on PR | `![Accepted](https://img.shields.io/badge/Status-Accepted-blue)` |
+| CORRECT, verified fixed on PR | `![Fixed](https://img.shields.io/badge/Status-Fixed-brightgreen)` |
 | WRONG | `![Rejected](https://img.shields.io/badge/Status-Rejected-blue)` |
 | PARTIAL | `![Partial](https://img.shields.io/badge/Status-Partial-yellow)` |
 | STALE | `![Stale](https://img.shields.io/badge/Status-Stale-lightgrey)` |
@@ -42,7 +43,17 @@ Prepend every reply body with the matching badge on its own line, followed by a 
 
 ## `CORRECT`
 
-Reply is drafted AFTER the fix is committed so the SHA is real, not a placeholder.
+Draft agreement without requiring edit/commit/push authority. Before the fix is verified on the PR, use:
+
+```markdown
+![Accepted](https://img.shields.io/badge/Status-Accepted-blue)
+
+Agreed. <specific concern and evidence>. <The PR is unchanged / the fix is verified locally but has not been pushed>.
+
+<Proposed next step within the user's request; do not promise unauthorized work.>
+```
+
+Use the Fixed examples below only after checking the fix in the PR snapshot.
 
 **SHA must be a clickable markdown link** — bare hashes do NOT auto-link inside review-comment threads. Format:
 ```
@@ -68,7 +79,7 @@ Fixed in [<short-sha>](https://github.com/<owner>/<repo>/commit/<full-sha>):
 - <file-b:line> — <what changed>
 ```
 
-If the fix is local-only (not pushed yet), the skill warns the user separately but the reply itself stays as written — by the time the reviewer reads it, the push should be done.
+If the fix is local-only, use Accepted and state that it is local. Omit unreachable commit links; do not assume a future push will happen.
 
 ---
 
@@ -96,7 +107,7 @@ This is intentional — <reason>. Tracked at <file:line / commit SHA / plan refe
 
 ## `PARTIAL`
 
-Same convention as `CORRECT`: reply is drafted AFTER the alternative fix is committed, and the SHA is a clickable markdown link.
+State the real resolution separately from the PARTIAL verdict. If the alternative is only planned or local, describe that state and omit the commit link. Use the following committed-fix example only when it is reachable and verified on the PR.
 
 ```
 ![Partial](https://img.shields.io/badge/Status-Partial-yellow)
@@ -159,7 +170,7 @@ Fair preference. Going to leave this as-is — <one-line reason: consistency wit
 
 Deferring to reviewer:
 ```
-![Fixed](https://img.shields.io/badge/Status-Fixed-brightgreen)
+![Accepted](https://img.shields.io/badge/Status-Accepted-blue)
 
 Sure, will swap to <their suggestion>. Cheap to change and reads <slightly better / fine either way>.
 ```
@@ -182,4 +193,4 @@ Do NOT speculate at length about what they might have meant.
 
 - End on substance, not on apology or filler.
 - Never end with "let me know if you have any other concerns" — sounds like marketing.
-- If you reference a commit you haven't pushed yet, say "in next commit" not a fake SHA.
+- Never render a fake or inaccessible commit link. Use Accepted with an accurate planned/local state until the fix is verified on the PR; do not imply a push is authorized.

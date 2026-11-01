@@ -1,118 +1,58 @@
 #!/usr/bin/env bash
-# Extract inline comments from a specific PR review and dump each as a JSON
-# file under an output directory — one finding per file. This is the canonical
-# input for the verdict-judgement loop and follow-up summary.
-#
-# Usage:
-#   extract-findings.sh <pr> <review_id> <out_dir> [<owner> <repo>]
-#
-# Output: one file per inline comment named `NN-<comment_id>.json` with:
-#   {
-#     "comment_id": <number>,
-#     "path": "<file path>",
-#     "original_line": <number>,        // line at time of original review
-#     "side": "RIGHT" | "LEFT",
-#     "start_line": <number|null>,
-#     "start_side": "RIGHT" | "LEFT" | null,
-#     "severity": "Critical" | "Important" | "Suggestion" | "Unknown",
-#     "body": "<full original body>",
-#     "diff_hunk": "<short context shown in original comment>",
-#     "html_url": "<link to original comment>"
-#   }
-#
-# Severity is parsed from the GitHub-shields badge in the body:
-#   ![important](https://img.shields.io/badge/Priority-Important-orange)
+# Extract original roots; full summary/thread source accounting lives in .context.
 set -euo pipefail
-
-pr="${1:?pr number required}"
-review_id="${2:?review_id required}"
-out_dir="${3:?out_dir required}"
-owner="${4:-}"
-repo="${5:-}"
-
-command -v gh >/dev/null || { echo "error: gh required" >&2; exit 2; }
-command -v jq >/dev/null || { echo "error: jq required" >&2; exit 2; }
-
+pr="${1:?PR}"; review_id="${2:?review ID}"; out="${3:?new output directory}"
+owner="${4:-}"; repo="${5:-}"
+command -v jq >/dev/null || exit 2
+command -v gh >/dev/null || exit 2
 if [[ -z "$owner" || -z "$repo" ]]; then
-  meta="$(gh repo view --json owner,name 2>/dev/null)" || {
-    echo "error: cannot infer owner/repo — pass them explicitly" >&2; exit 2;
-  }
-  owner="$(jq -r '.owner.login' <<<"$meta")"
-  repo="$(jq -r '.name' <<<"$meta")"
+  meta="$(gh repo view --json owner,name)" || exit 2
+  owner="$(jq -r '.owner.login' <<<"$meta")"; repo="$(jq -r '.name' <<<"$meta")"
 fi
-
-mkdir -p "$out_dir"
-
-# The per-review comments endpoint (`/reviews/{id}/comments`) omits line
-# fields. Use the PR-wide review-comments endpoint (`/pulls/{n}/comments`)
-# which returns full line data, then filter by `pull_request_review_id`.
-comments_json="$(gh api --paginate \
-  "/repos/${owner}/${repo}/pulls/${pr}/comments" 2>/dev/null)" || {
-  echo "error: gh api /pulls/${pr}/comments failed" >&2
-  exit 1
-}
-
-# Parse before the loop so a malformed response cannot look like zero findings.
-comments="$(printf '%s' "$comments_json" \
-  | jq -c -s --argjson rid "$review_id" \
-      'flatten | map(select(.pull_request_review_id == $rid)) | .[]')" || {
-  echo "error: cannot parse review comments" >&2
-  exit 1
-}
-
-if [[ -z "$comments" ]]; then
-  echo "warning: no inline comments on review ${review_id}" >&2
-  exit 0
-fi
-
-idx=0
-while IFS= read -r c; do
-  idx=$((idx + 1))
-  cid="$(jq -r '.id' <<<"$c")"
-  path="$(jq -r '.path' <<<"$c")"
-  # original_line = anchor in the prior review's commit (what we need for verdict);
-  # line          = anchor re-resolved against current head (may be null if drifted out)
-  line="$(jq -r '.original_line // .line // empty' <<<"$c")"
-  side="$(jq -r '.side // "RIGHT"' <<<"$c")"
-  start_line="$(jq -r '.original_start_line // .start_line // empty' <<<"$c")"
-  start_side="$(jq -r '.start_side // empty' <<<"$c")"
-  body="$(jq -r '.body' <<<"$c")"
-  diff_hunk="$(jq -r '.diff_hunk // ""' <<<"$c")"
-  html_url="$(jq -r '.html_url' <<<"$c")"
-
-  # Severity: scan body for the shields.io badge pattern.
-  severity="Unknown"
-  case "$body" in
-    *Priority-Critical*) severity="Critical" ;;
-    *Priority-Important*) severity="Important" ;;
-    *Priority-Suggestion*) severity="Suggestion" ;;
-  esac
-
-  out_file="$(printf "%s/%02d-%s.json" "$out_dir" "$idx" "$cid")"
-
-  jq -n \
-    --argjson cid "$cid" \
-    --arg path "$path" \
-    --argjson line "${line:-null}" \
-    --arg side "$side" \
-    --arg start_line "${start_line:-}" \
-    --arg start_side "${start_side:-}" \
-    --arg severity "$severity" \
-    --arg body "$body" \
-    --arg diff_hunk "$diff_hunk" \
-    --arg html_url "$html_url" \
-    '{
-      comment_id: $cid,
-      path: $path,
-      original_line: $line,
-      side: $side,
-      start_line: (if $start_line == "" then null else ($start_line|tonumber) end),
-      start_side: (if $start_side == "" then null else $start_side end),
-      severity: $severity,
-      body: $body,
-      diff_hunk: $diff_hunk,
-      html_url: $html_url
-    }' > "$out_file"
-done <<< "$comments"
-
-echo "extracted ${idx} finding(s) to ${out_dir}"
+[[ ! -e "$out" && ! -L "$out" ]] || { echo "error: output exists; use a fresh directory" >&2; exit 2; }
+mkdir -p "$out/.context/items"
+prefix="/repos/$owner/$repo/pulls/$pr"
+printf '%s\n' '{"complete":false,"records":[]}' > "$out/.context/inventory.json"
+gh api "$prefix/reviews/$review_id" > "$out/.context/review.json" || exit 1
+gh api --paginate "$prefix/comments" > "$out/.context/pages.json" || exit 1
+jq -e --argjson rid "$review_id" '.id == $rid and (.body | type == "string" or . == null)' "$out/.context/review.json" >/dev/null || exit 1
+jq -e -s 'if length == 0 or any(.[]; type != "array") then error("expected pages")
+ else add | if any(.[]; (.id | type != "number") or (.body | type != "string"))
+ then error("invalid comment") else . end end' "$out/.context/pages.json" > "$out/.context/all-comments.json" || exit 1
+jq --argjson rid "$review_id" '
+  [.[] | select(.pull_request_review_id == $rid and .in_reply_to_id == null)] as $roots |
+  ($roots | map(.id)) as $ids |
+  [.[] | select((.id as $id | $ids | index($id) != null) or
+    (.in_reply_to_id as $id | $ids | index($id) != null))] |
+  unique_by(.id)
+' "$out/.context/all-comments.json" > "$out/.context/selected.json"
+# A selected-review reply whose root vanished makes transport incomplete.
+missing="$(jq --argjson rid "$review_id" '
+  (map(.id)) as $ids | [.[] | select(.pull_request_review_id == $rid and .in_reply_to_id != null)
+    | .in_reply_to_id | select(. as $id | $ids | index($id) == null)] | unique
+' "$out/.context/all-comments.json")"
+cp "$out/.context/review.json" "$out/.context/items/reviews-$review_id.json"
+while IFS= read -r item; do
+  id="$(jq -r '.id' <<<"$item")"
+  printf '%s\n' "$item" > "$out/.context/items/inline-$id.json"
+  if jq -e '.in_reply_to_id == null' <<<"$item" >/dev/null; then
+    jq '{
+      comment_id:.id,path,original_line:(.original_line // .line),side:(.side // "RIGHT"),
+      start_line:(.original_start_line // .start_line),start_side,
+      severity:(if (.body | contains("Priority-Critical")) then "Critical"
+        elif (.body | contains("Priority-Important")) then "Important"
+        elif (.body | contains("Priority-Suggestion")) then "Suggestion" else "Unknown" end),
+      body,diff_hunk,html_url
+    }' <<<"$item" > "$out/$id.json"
+  fi
+done < <(jq -c '.[]' "$out/.context/selected.json")
+jq -n --arg owner "$owner" --arg repo "$repo" --argjson pr "$pr" --argjson rid "$review_id" \
+  --argjson missing "$missing" --slurpfile selected "$out/.context/selected.json" '
+  {owner:$owner,repo:$repo,pr:$pr,review_id:$rid,complete:($missing|length==0),missing_root_ids:$missing,
+   records:([{key:("reviews:"+($rid|tostring)),kind:"reviews",id:$rid,body_file:("items/reviews-"+($rid|tostring)+".json")}] +
+     [$selected[0][] | {key:("inline:"+(.id|tostring)),kind:"inline",id,review_id:.pull_request_review_id,
+       root_comment_id:(.in_reply_to_id // .id),is_reply:(.in_reply_to_id != null),
+       body_file:("items/inline-"+(.id|tostring)+".json")}])}
+' > "$out/.context/inventory.json"
+jq -e '.complete' "$out/.context/inventory.json" >/dev/null || { echo "error: selected root missing" >&2; exit 3; }
+printf 'inventory=%s/.context/inventory.json\n' "$out"
