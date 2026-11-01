@@ -1,6 +1,6 @@
 # Chained Workflow
 
-`github-pr-review-verify-fixes` is one node in a multi-skill review pipeline. Use this reference to understand entry points, exit conditions, and how to avoid spamming the PR.
+`pr-review-verify-fixes` is one node in a multi-skill review pipeline. Use this reference to understand entry points, exit conditions, and how to avoid spamming the PR.
 
 ## Full chain
 
@@ -11,14 +11,14 @@
                   a fresh code-review workflow <N>           [runs adversarial agents,
                                  │                            saves findings to plans/reports/]
                                  ▼
-                  github-pr-review-publish                     [aggregates + classifies findings,
+                  pr-review-publish                     [aggregates + classifies findings,
                                  │                            validates anchors,
                                  │                            posts ONE review with inline comments]
                                  ▼
                   ┌──── dev pushes follow-up commits ────┐
                   │                                       │
                   ▼                                       │
-                  github-pr-review-verify-fixes                      │
+                  pr-review-verify-fixes                      │
                                  │                        │
                                  ▼                        │
                        ┌── all Fixed? ──┐                 │
@@ -36,12 +36,12 @@
 
 - **Fresh PR, no prior review by you:** start at a fresh code-review workflow.
 - **You already reviewed but dev hasn't pushed yet:** wait. Nothing to do. (`list-followup-commits.sh` will return zero commits — the skill exits cleanly.)
-- **You reviewed AND dev pushed at least one commit since:** start here, at `github-pr-review-verify-fixes`.
+- **You reviewed AND dev pushed at least one commit since:** start here, at `pr-review-verify-fixes`.
 - **You reviewed, dev pushed, you already posted ONE follow-up for the current head SHA:** skill should ask before posting a duplicate. If the dev hasn't pushed since the last follow-up, there's nothing new to verify.
 
 ## Exit conditions
 
-A `github-pr-review-verify-fixes` run ends in one of three states:
+A `pr-review-verify-fixes` run ends in one of three states:
 
 | State | Output | Next action |
 |-------|--------|-------------|
@@ -81,7 +81,7 @@ Before posting, the skill MUST:
 
 ## Composition with companion skills
 
-`github-pr-review-verify-fixes` uses a two-step submission:
+`pr-review-verify-fixes` uses a two-step submission:
 
 1. **Top-level review** — assembles its own summary-only payload with jq (`event: COMMENT`, empty comments array), then submits through `gh api --input` as shown in SKILL.md. No publisher skill installation is required.
 2. **Thread replies** — uses its own `post-thread-replies.sh` to post each verdict as an `in_reply_to` reply to the original finding comment. No anchor validation needed.
@@ -94,7 +94,7 @@ If this skill cannot proceed (no prior review, no commits, anchor explosion), te
 
 | Reason | Tell the user |
 |--------|---------------|
-| No prior findings by current user | Run a fresh code-review workflow, then publish its findings with `github-pr-review-publish`. |
+| No prior findings by current user | Run a fresh code-review workflow, then publish its findings with `pr-review-publish`. |
 | Zero follow-up commits | Dev hasn't pushed yet. Re-run after they push. |
 | Original comment deleted (thread reply fails) | Finding covered by top-level summary table. No action needed. |
 | Duplicate follow-up for current head | Existing follow-up still applies. Re-run after next push. |

@@ -1,11 +1,11 @@
 ---
-name: github-pr-create
+name: pr-create
 description: Create a GitHub pull request from the current branch, including a structured description and an authorized push when needed. Use when the user asks to open or create a PR. Does not commit uncommitted work, review code, or merge PRs.
 compatibility: Requires git, authenticated gh and network access. GitButler (but) is optional.
 license: MIT
 metadata:
   author: HuyNong
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # Create PR

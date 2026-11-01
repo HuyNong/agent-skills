@@ -1,13 +1,15 @@
-# GitHub PR skills
+# PR workflow skills
 
-Four portable [Agent Skills](https://agentskills.io) for GitHub pull-request workflows. Each skill includes its own instructions, resources and MIT license and can be installed independently.
+Four portable [Agent Skills](https://agentskills.io) for pull-request workflows on GitHub. Each skill includes its own instructions, resources and MIT license and can be installed independently.
+
+This independent project is not affiliated with, sponsored by, or endorsed by GitHub. GitHub is a trademark of GitHub, Inc.
 
 | Skill | Use it to |
 |---|---|
-| `github-pr-create` | Create a PR from committed branch changes, with a structured description and an authorized push when needed. |
-| `github-pr-review-publish` | Publish existing review findings as one summary and anchored inline comments. |
-| `github-pr-review-respond` | Verify feedback, automatically choose its thread or diff anchor, and draft a reply for posting confirmation. Apply/commit fixes when authorized. |
-| `github-pr-review-verify-fixes` | Check new commits against prior findings and publish an authorized follow-up with per-finding verdicts. |
+| `pr-create` | Create a PR from committed branch changes, with a structured description and an authorized push when needed. |
+| `pr-review-publish` | Publish existing review findings as one summary and anchored inline comments. |
+| `pr-review-respond` | Verify feedback, automatically choose its thread or diff anchor, and draft a reply for posting confirmation. Apply/commit fixes when authorized. |
+| `pr-review-verify-fixes` | Check new commits against prior findings and publish an authorized follow-up with per-finding verdicts. |
 
 Use your normal code-review workflow to produce new findings. Publishing findings, responding to a reviewer and checking later fixes are separate intents.
 
@@ -21,7 +23,7 @@ npx skills add HuyNong/agent-skills --list
 
 # Install one skill for both agents
 npx skills add HuyNong/agent-skills \
-  --skill github-pr-create -a codex claude-code
+  --skill pr-create -a codex claude-code
 
 # Install the collection
 npx skills add HuyNong/agent-skills \
@@ -32,11 +34,26 @@ Add `-g` to install across projects. The CLI manages the shared `.agents/skills/
 
 ```bash
 npx skills list
-npx skills update github-pr-create -p
-npx skills remove github-pr-create
+# Update every installed global skill
+npx skills update -g
+# Update every skill installed in the current project
+npx skills update -p
+# Update one project skill
+npx skills update pr-create -p
+npx skills remove pr-create
 ```
 
+The update commands cover all installed sources in the selected scope. To install or refresh only this collection, rerun its `skills add` command above; `update` does not install newly added skill names.
+
 Omitting agent filters when removing a named skill cleans its shared installation and all agent links. Filtering removal to selected agents can leave the shared `.agents/skills/` copy available to other universal agents.
+
+For installations from v1.x, install the new `pr-*` names first and verify them with `npx skills list -g`, then remove the old names. Use this sequence for global installations; omit `-g` and run inside the consuming project for project installations. Use explicit installation to switch names rather than relying on `skills update` to rename an existing skill.
+
+```bash
+npx skills add HuyNong/agent-skills --skill '*' -a codex claude-code -g
+npx skills remove --skill github-pr-create github-pr-review-publish \
+  github-pr-review-respond github-pr-review-verify-fixes -g
+```
 
 ## Requirements
 

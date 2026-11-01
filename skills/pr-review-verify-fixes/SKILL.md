@@ -1,11 +1,11 @@
 ---
-name: github-pr-review-verify-fixes
+name: pr-review-verify-fixes
 description: Verify whether new commits address findings from a previously posted GitHub PR review, then report per-finding verdicts and publish an authorized follow-up. Use for rechecking requested fixes after new commits. Does not perform a fresh review, edit code, approve, resolve threads, or merge.
 compatibility: Requires Bash 3.2+, git, gh, jq, standard Unix tools and authenticated GitHub network access.
 license: MIT
 metadata:
   author: HuyNong
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # PR Review Followup
@@ -32,10 +32,10 @@ Activate when the user references continuation of an already-posted review:
 - "did they address my comments"
 - "is the PR ready to merge yet"
 - "re-review now that they pushed more commits"
-- Triggered right after `github-pr-review-publish` ran in a prior session and dev has since pushed commits.
+- Triggered right after `pr-review-publish` ran in a prior session and dev has since pushed commits.
 
 Do NOT activate when:
-- No prior review exists from the current user on this PR — instead suggest running a fresh code-review workflow + `github-pr-review-publish` first.
+- No prior review exists from the current user on this PR — instead suggest running a fresh code-review workflow + `pr-review-publish` first.
 - The user is asking for a fresh code review rather than checking findings from a prior review.
 
 ## Workflow
@@ -47,7 +47,7 @@ Do NOT activate when:
 - Identify current GitHub login: `gh api /user --jq '.login'`.
 - Fetch the most-recent submitted review **by that login with original inline findings** on this PR via `bash "$SKILL_ROOT/scripts/fetch-prior-review.sh" <pr>`. Summary-only follow-ups and review records created for thread replies do not replace the original findings. Returns:
   - `review_id`, `review_commit_id` (the SHA the prior review was anchored to), `review_submitted_at`, `review_html_url`.
-- If none found → STOP, recommend running a fresh code-review workflow + `github-pr-review-publish` first.
+- If none found → STOP, recommend running a fresh code-review workflow + `pr-review-publish` first.
 - Capture the **current PR head SHA** separately — that's what the follow-up review anchors to.
 
 ### 2. Extract prior findings
@@ -201,13 +201,13 @@ Return to the user:
 This skill is one node in a chain — see `references/chained-workflow.md` for the full sequence and decision points.
 
 ```
-a fresh code-review workflow  ─►  github-pr-review-publish  ─►  (dev pushes fixes)
+a fresh code-review workflow  ─►  pr-review-publish  ─►  (dev pushes fixes)
                                                                      │
                           ┌──────────────────────────────────────────┘
                           ▼
-                    github-pr-review-verify-fixes  ─►  (all Fixed?) ─Yes─►  human clicks Approve  ─►  merge
+                    pr-review-verify-fixes  ─►  (all Fixed?) ─Yes─►  human clicks Approve  ─►  merge
                           │
-                          └──No──►  (dev pushes more)  ─►  github-pr-review-verify-fixes  ─►  ...
+                          └──No──►  (dev pushes more)  ─►  pr-review-verify-fixes  ─►  ...
 ```
 
 ## Hard rules

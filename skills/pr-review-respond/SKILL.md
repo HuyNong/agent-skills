@@ -1,11 +1,11 @@
 ---
-name: github-pr-review-respond
+name: pr-review-respond
 description: Evaluate incoming GitHub PR review feedback against the code, draft a verdict and reply, and apply or commit a fix when authorized. Use when the user asks whether a reviewer is right or wants to respond to feedback. Posting and pushing require authorization covering those actions.
 compatibility: Requires Bash 3.2+, git, jq, authenticated gh and network access. GitButler (but) is optional.
 license: MIT
 metadata:
   author: HuyNong
-  version: "1.1.0"
+  version: "2.0.0"
 ---
 
 # PR Review Evaluator

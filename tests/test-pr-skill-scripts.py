@@ -148,7 +148,7 @@ class Contracts(ScriptCase):
                     self.assertIn("comment_id=42\n", result.stdout)
 
     def test_release_packages_are_self_contained(self):
-        names = {"github-pr-create", PUBLISH, RESPOND, VERIFY}
+        names = {"pr-create", PUBLISH, RESPOND, VERIFY}
         self.assertEqual({p.name for p in (ROOT / "skills").iterdir() if p.is_dir()}, names)
         for name in names:
             folder = ROOT / "skills" / name

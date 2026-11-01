@@ -1,11 +1,11 @@
 ---
-name: github-pr-review-publish
+name: pr-review-publish
 description: Publish existing code-review findings as one GitHub PR review with a summary and anchored inline comments. Use when the user explicitly asks to post or publish review findings. Does not perform a fresh code review or verify later fixes.
 compatibility: Requires Bash 3.2+, git, gh, jq, standard Unix tools and authenticated GitHub network access.
 license: MIT
 metadata:
   author: HuyNong
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # Post PR Review Comment

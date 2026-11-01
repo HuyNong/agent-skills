@@ -21,7 +21,7 @@
 #   1  — generic failure
 #   2  — bad args / missing deps
 #   3  — no prior review by current user on this PR (caller should suggest
-#        running a fresh code-review workflow + github-pr-review-publish)
+#        running a fresh code-review workflow + pr-review-publish)
 set -euo pipefail
 
 pr="${1:?pr number required}"

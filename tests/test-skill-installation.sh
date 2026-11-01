@@ -6,7 +6,7 @@ source_root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d "${TMPDIR:-/tmp}/pr-skill-install.XXXXXX")"
 trap 'rm -rf -- "$work"' EXIT
 export DISABLE_TELEMETRY=1
-names=(github-pr-create github-pr-review-publish github-pr-review-respond github-pr-review-verify-fixes)
+names=(pr-create pr-review-publish pr-review-respond pr-review-verify-fixes)
 
 npx --yes skills@1.7.4 --version
 for mode in default copy; do
@@ -50,7 +50,7 @@ for base in [".agents/skills", ".claude/skills"]:
         for helper in (folder / "scripts").glob("*.sh"):
             assert helper.stat().st_mode & 0o111, helper
             subprocess.run(["/bin/bash", "-n", str(helper)], check=True)
-        if name == "github-pr-review-respond":
+        if name == "pr-review-respond":
             result = subprocess.run(["/bin/bash", str(folder / "scripts/parse-review-url.sh"),
                                      "https://github.com/acme/demo/pull/7#discussion_r42"],
                                     cwd=project, text=True, capture_output=True, check=True)

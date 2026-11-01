@@ -8,9 +8,9 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-PUBLISH = "github-pr-review-publish"
-VERIFY = "github-pr-review-verify-fixes"
-RESPOND = "github-pr-review-respond"
+PUBLISH = "pr-review-publish"
+VERIFY = "pr-review-verify-fixes"
+RESPOND = "pr-review-respond"
 
 GH_FIXTURE = r'''#!/usr/bin/env python3
 import json, pathlib, subprocess, sys

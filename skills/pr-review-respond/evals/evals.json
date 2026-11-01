@@ -1,10 +1,10 @@
 {
-  "skill_name": "github-pr-review-respond",
+  "skill_name": "pr-review-respond",
   "evals": [
     {
       "id": "summary-anchor",
       "split": "train",
-      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "prompt": "Dùng pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
       "expected_output": "Select src/clean.py:3 RIGHT at the verified current PR head, quote/link the source claim, and stop for posting confirmation.",
       "files": [],
       "assertions": [
@@ -38,7 +38,7 @@
     {
       "id": "outside-diff",
       "split": "train",
-      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "prompt": "Dùng pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
       "expected_output": "Use a quoted top-level fallback because src/clean.py:2 lies outside the canonical PR patch, explain the reason, and stop for posting confirmation.",
       "files": [],
       "assertions": [
@@ -72,7 +72,7 @@
     {
       "id": "existing-thread",
       "split": "train",
-      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#discussion_r73.",
+      "prompt": "Dùng pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#discussion_r73.",
       "expected_output": "Keep the existing inline thread rooted at comment 73 and stop for posting confirmation.",
       "files": [],
       "assertions": [
@@ -101,7 +101,7 @@
     {
       "id": "multi-feedback",
       "split": "train",
-      "prompt": "Dùng github-pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "prompt": "Dùng pr-review-respond đánh giá góp ý tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
       "expected_output": "Evaluate only the linked summary concern and its matching original thread, deduplicate that concern, list the three other inline findings without evaluating them, and stop for posting confirmation.",
       "files": [],
       "assertions": [
@@ -149,7 +149,7 @@
     {
       "id": "incomplete-pages",
       "split": "train",
-      "prompt": "Dùng github-pr-review-respond đánh giá toàn bộ góp ý PR tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
+      "prompt": "Dùng pr-review-respond đánh giá toàn bộ góp ý PR tại https://github.com/acme/reply-fixture/pull/7#issuecomment-42.",
       "expected_output": "Report incomplete collection when a later inline-comment page fails; retain artifacts and available sources, and do not present a complete fix/reply batch or perform any mutation.",
       "files": [],
       "assertions": [
@@ -173,7 +173,7 @@
     {
       "id": "linked-review",
       "split": "train",
-      "prompt": "Dùng github-pr-review-respond đánh giá review tại https://github.com/acme/reply-fixture/pull/7#pullrequestreview-11.",
+      "prompt": "Dùng pr-review-respond đánh giá review tại https://github.com/acme/reply-fixture/pull/7#pullrequestreview-11.",
       "expected_output": "Read the linked review summary, all four root findings and their reply context; evaluate four unique findings, list other PR feedback outside this review without adjudicating it, and stop for posting confirmation.",
       "files": [],
       "assertions": [
