@@ -10,6 +10,7 @@ from inline_membership_contracts import InlineMembershipContracts
 from publish_link_contracts import PublishLinkContracts
 from publish_recovery_contracts import PublishRecoveryContracts
 from reply_recovery_contracts import ReplyRecoveryContracts
+from reply_badge_contracts import ReplyBadgeContracts
 from review_coverage_contracts import ReviewCoverageContracts
 from readiness_contracts import ReadinessContracts
 from consumer_harness_contracts import ConsumerHarnessContracts

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Post a threaded reply to a PR review comment (or a top-level fallback comment).
 # Usage: post-reply.sh <owner> <repo> <pr> <comment_id> <kind> <body_file>
+# Optional: <receipt> <item-key> <verdict> <fix-state>
 #   kind = review | issue
 # Body is read from <body_file> to avoid shell-escaping pain.
 # On success prints: html_url=<new_comment_url>
@@ -14,6 +15,9 @@ kind="${5:?kind required (review|issue)}"
 body_file="${6:?body_file required}"
 receipt_file="${7:-}"
 item_key="${8:-reply}"
+
+# Legacy calls validate format; new workflows also supply verdict/fix state.
+bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-reply-body.sh" "$body_file" "${9:-}" "${10:-}"
 
 [[ -r "$body_file" ]] || { echo "error: body_file not readable: $body_file" >&2; exit 2; }
 body="$(cat "$body_file")"

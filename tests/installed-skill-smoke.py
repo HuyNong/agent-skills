@@ -34,7 +34,7 @@ def smoke(folder, project):
                                   cwd=project, env=environment, text=True, capture_output=True, check=True)
 
         body = work / "body.md"
-        body.write_text("Accepted; planned, no fix on PR yet.\n")
+        body.write_text("![Accepted](https://img.shields.io/badge/Status-Accepted-blue)\n\nAccepted; planned, no fix on PR yet.\n")
         receipt = work / "receipt.json"
         name = folder.name
         if name == "pr-create":

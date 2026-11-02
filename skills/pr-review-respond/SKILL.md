@@ -5,7 +5,7 @@ compatibility: Requires Bash 3.2+, git, jq, authenticated gh and network access.
 license: MIT
 metadata:
   author: HuyNong
-  version: "2.1.0"
+  version: "2.1.1"
 ---
 
 # Evaluate and respond to PR feedback
@@ -61,7 +61,7 @@ Verdicts: CORRECT, WRONG, PARTIAL, STALE, LOCKED, OPINION or AMBIGUOUS. A clarif
 
 ## 4. Separate verdict from fix state
 
-Read `references/reply-templates.md`. CORRECT means the reviewer is right; it does not mean the fix is deployed.
+Read `references/reply-templates.md` before drafting. Every reply, including replies inside existing threads, starts with its canonical shields.io badge on a separate line, followed by a blank line. Plain `Fixed —` is not a badge. PARTIAL keeps the Partial badge even after an alternative fix reaches the PR; describe resolution separately. CORRECT means the reviewer is right; it does not mean the fix is deployed.
 
 - `planned`: unchanged on the PR; acknowledge with **Accepted** and describe the plan without promising unauthorized work.
 - `fixed-local`: verified local edits/commit only; use **Accepted**, state they are local and omit an inaccessible commit link.
@@ -83,6 +83,14 @@ New-inline/fallback replies include the badge, a short accurate quote, source li
 
 ## 6. Preview and confirm
 
+Validate each final body against its verdict and fix state before preview:
+
+```bash
+bash "$SKILL_ROOT/scripts/validate-reply-body.sh" <body_file> <verdict> <fix_state>
+```
+
+For CORRECT supply `planned`, `fixed-local` or `fixed-on-pr`. Other verdicts may use an empty fix-state argument. This checks format/mapping, not code truth or authorization. On failure, correct the draft and show its final content before confirming; do not silently alter an approved body.
+
 Validate complete selected coverage before the batch preview:
 
 ```bash
@@ -98,14 +106,16 @@ Read `references/delivery-receipts.md`. After confirmation, create an owned rece
 All new workflows pass the receipt; legacy helper calls without it remain one-shot. For an original thread:
 
 ```bash
-bash "$SKILL_ROOT/scripts/post-reply.sh" <owner> <repo> <pr> <root_id> review <body_file> <receipt_file> <item_key>
+bash "$SKILL_ROOT/scripts/post-reply.sh" <owner> <repo> <pr> <root_id> review <body_file> <receipt_file> <item_key> <verdict> <fix_state>
 ```
 
 For a single RIGHT-side current-head anchor:
 
 ```bash
-bash "$SKILL_ROOT/scripts/post-new-inline.sh" <owner> <repo> <pr> <full_sha> <path> <line> <body_file> <receipt_file> <item_key>
+bash "$SKILL_ROOT/scripts/post-new-inline.sh" <owner> <repo> <pr> <full_sha> <path> <line> <body_file> <receipt_file> <item_key> <verdict> <fix_state>
 ```
+
+Both posting helpers reject missing or malformed badges before API access. Pass verdict/fix-state arguments in new workflows to also reject a mismatched badge. Legacy calls omitting these arguments check canonical badge format only. Direct receipt calls validate format too; validate their body with verdict/fix state before invoking them. Direct `gh` calls can bypass these helpers and are not a substitute for validation.
 
 The helper checks the authoritative PR head directly; historical membership needs complete evidence. Exit 3 is unavailable data, 4 absent/indeterminate membership, 5 snapshot drift. None implies permission to push. LEFT/range payload delivery is documented in `references/github-api-paths.md`; use the same receipt library after validating the actual anchor.
 

@@ -26,7 +26,9 @@ Choose the quote and source link automatically. Quote only the relevant claim, n
 
 ### Verdict badges
 
-Prepend every reply body with the matching badge on its own line, followed by a blank line:
+Prepend every reply body, including original-thread replies, with the matching badge on its own line, followed by a blank line. A plain status word is insufficient. PARTIAL always uses Partial; a completed alternative fix belongs in the explanation, not a replacement Fixed badge. Validate with `scripts/validate-reply-body.sh <body-file> <verdict> <fix-state>` before preview and pass those same verdict/state values to posting helpers. The validator checks declared mapping, not whether evidence establishes the verdict or fix state.
+
+Canonical badges:
 
 | Verdict | Badge |
 |---------|-------|

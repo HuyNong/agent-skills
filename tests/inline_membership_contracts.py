@@ -10,7 +10,7 @@ class InlineMembershipContracts(ScriptCase):
         self.respond({"GET " + PR: metadata or {"head": {"sha": HEAD}, "base": {"sha": "a" * 40}, "commits": 300},
                       "POST " + PR + "/comments": {"id": 12, "html_url": "https://example.test/reply"}, **responses})
         body = self.work / "body.txt"
-        body.write_text("Verified reply")
+        body.write_text("![Partial](https://img.shields.io/badge/Status-Partial-yellow)\n\nVerified reply")
         return body
 
     def test_current_head_does_not_enumerate_capped_commits(self):

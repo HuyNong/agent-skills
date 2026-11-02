@@ -14,6 +14,8 @@ receipt_post() (
   [[ "$rrmethod" == POST || "$rrmethod" == PUT ]] || exit 2
   [[ ! -L "$rrfile" && -d "$(dirname "$rrfile")" ]] || { echo "error: receipt needs an owned regular path" >&2; exit 2; }
   jq -e 'type == "object" and (.body | type == "string" and length > 0)' "$rrpayload" >/dev/null || exit 2
+  # Also protect callers using receipt_post directly for LEFT/range payloads.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-reply-body.sh" <(jq -r '.body' "$rrpayload") || exit 2
   rrlock="$rrfile.lock"; rrtmp=""; rrresponse=""; rrerror=""
   mkdir "$rrlock" 2>/dev/null || { echo "error: receipt locked; inspect its owner before recovery" >&2; exit 7; }
   rrtoken="$$:$RANDOM"; printf '%s\n' "$rrtoken" > "$rrlock/owner"

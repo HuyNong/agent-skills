@@ -9,6 +9,7 @@ receipt_file="${8:-}"; item_key="${9:-inline}"
   echo "error: full hexadecimal SHA and positive line required" >&2; exit 2;
 }
 [[ -r "$body_file" && -s "$body_file" ]] || { echo "error: readable nonempty body required" >&2; exit 2; }
+bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-reply-body.sh" "$body_file" "${10:-}" "${11:-}"
 command -v jq >/dev/null || { echo "error: jq required" >&2; exit 2; }
 gh auth status >/dev/null 2>&1 || { echo "error: run gh auth login" >&2; exit 1; }
 endpoint="/repos/$owner/$repo/pulls/$pr"

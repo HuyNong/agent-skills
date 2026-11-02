@@ -9,6 +9,7 @@ from script_fixtures import RESPOND, VERIFY, ROOT, ScriptCase
 PR = "/repos/acme/demo/pulls/7"
 ROOT_REPLY = PR + "/comments/42/replies"
 HEAD = "b" * 40
+ACCEPTED = "![Accepted](https://img.shields.io/badge/Status-Accepted-blue)\n\nAccepted. Fix is still local."
 
 
 class ReplyRecoveryContracts(ScriptCase):
@@ -19,7 +20,7 @@ class ReplyRecoveryContracts(ScriptCase):
                       "POST " + ROOT_REPLY: {"id": 100, "html_url": "https://example.test/100"},
                       **responses})
         self.body = self.work / "body.txt"
-        self.body.write_text("Accepted. Fix is still local.")
+        self.body.write_text(ACCEPTED)
         self.receipt = self.work / "receipt.json"
 
     def deliver(self):
@@ -43,7 +44,7 @@ class ReplyRecoveryContracts(ScriptCase):
         self.setup_delivery(**{
             "POST " + ROOT_REPLY: {"_status": 1, "_stdout": "connection lost"},
             "GET " + PR + "/comments#2": [{"id": 100, "html_url": "https://example.test/100",
-                "user": {"login": "tester"}, "body": "Accepted. Fix is still local.", "in_reply_to_id": 42}]})
+                "user": {"login": "tester"}, "body": ACCEPTED, "in_reply_to_id": 42}]})
         first = self.deliver()
         self.assertEqual(first.returncode, 6, first.stderr)
         self.assertEqual(self.deliver().returncode, 0)
@@ -66,7 +67,7 @@ class ReplyRecoveryContracts(ScriptCase):
     def test_changed_body_requires_a_new_approved_item(self):
         self.setup_delivery()
         self.assertEqual(self.deliver().returncode, 0)
-        self.body.write_text("Different claim")
+        self.body.write_text(ACCEPTED + " Different claim")
         result = self.deliver()
         self.assertEqual(result.returncode, 5, result.stderr)
         self.assertEqual(sum(c["key"].startswith("POST ") for c in self.calls()), 1)
