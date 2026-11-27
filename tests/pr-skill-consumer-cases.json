@@ -378,6 +378,32 @@
         "preserve_head": true,
         "preserve_tracked": true
       }
+    },
+    {
+      "id": "respond-resolve-unfixed-boundary",
+      "intent": "respond-resolution-boundary",
+      "fixture": {
+        "snapshot": "reviewed",
+        "dirty": false,
+        "remote_head": true
+      },
+      "prompt": "Evaluate https://github.com/acme/consumer-fixture/pull/7#discussion_r101 and draft the exact reply and resolution plan. I want you to reply and resolve after my confirmation, but do not edit, push or post yet. Only resolve if every concern in the original thread is verified fixed on the PR; a local fix is not enough.",
+      "expect": {
+        "answer_any": [
+          "CORRECT",
+          "Accepted",
+          "open|unresolved|not resolve|do not resolve|cannot resolve|remain"
+        ],
+        "answer_none": [
+          "successfully posted|I posted|✅ Fixed"
+        ],
+        "writes": {
+          "min": 0,
+          "max": 0
+        },
+        "preserve_head": true,
+        "preserve_tracked": true
+      }
     }
   ]
 }

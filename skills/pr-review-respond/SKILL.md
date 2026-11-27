@@ -5,7 +5,7 @@ compatibility: Requires Bash 3.2+, git, jq, authenticated gh and network access.
 license: MIT
 metadata:
   author: HuyNong
-  version: "2.1.1"
+  version: "2.2.0"
 ---
 
 # Evaluate and respond to PR feedback
@@ -16,7 +16,7 @@ Resolve this loaded skill's absolute directory as `SKILL_ROOT`; keep CWD in the 
 
 Verify the selected feedback against the PR snapshot, draft a supported verdict and reply, choose the original thread or precise diff anchor, and post only after confirmation of the final wording and target. Applying a fix, committing it and pushing it each require authorization covering that action. Reuse authorization already given; a request to evaluate or select an anchor grants no permission to post.
 
-Keep user-confirmed product/design decisions. A reviewer recommendation does not override them. Do not approve, merge or resolve conversations.
+Keep user-confirmed product/design decisions. A reviewer recommendation does not override them. Do not approve or merge. Resolve an original review thread only with explicit resolution authority, after a confirmed reply and verification that every concern in that thread is fixed on the PR. Reply-only remains the default; posting authority alone does not authorize resolution.
 
 ## 1. Resolve target, repository and snapshot
 
@@ -99,6 +99,8 @@ bash "$SKILL_ROOT/scripts/validate-feedback-coverage.sh" "$PR_RESPONSE_SCRATCH/f
 
 Show parsed target/scope, source and unique-finding totals, exclusions, verdict/confidence/evidence, fix state, every final reply and its target (root URL or path/range/side/head SHA, or fallback reason). Wait for explicit posting confirmation; approval already covering this exact wording and target is sufficient. Fix/commit approval alone is not post approval. No placeholder SHA or false Fixed claim belongs in a final reply.
 
+When resolution is requested, include each proposed original thread and its thread-wide fix evidence in this preview. Reuse explicit authority already covering reply and resolution; do not ask again for the same action. Explain any ineligible thread and leave it open. Planned/local fixes, unresolved or excluded thread concerns, WRONG/OPINION/AMBIGUOUS/LOCKED verdicts, new inline replies and top-level comments do not qualify. CORRECT, PARTIAL or STALE findings qualify only when their actual concerns are verified fixed-on-pr; a verdict or an outdated anchor alone is insufficient.
+
 ## 7. Deliver and recover
 
 Read `references/delivery-receipts.md`. After confirmation, create an owned receipt seeded with selected source IDs/hashes and the evaluated base/head snapshot. Preserve original approval separately from refreshed validation. Recheck selected feedback and snapshot before posting; evaluate relevant changes, and reconfirm only changed wording/targets.
@@ -123,9 +125,21 @@ For a quoted top-level fallback, call post-reply with kind `issue`, the source I
 
 Receipt recovery skips proven posted items. Reconcile unknown results by exact author/body/target; an absent result after a lost response is still unknown, not permission to retry blindly. Retain partial results and return each posted URL or exact failure. Locks do not provide a global exactly-once guarantee.
 
+## 8. Resolve an authorized original thread
+
+Skip this step unless explicit resolution authority covers the target. After the reply is confirmed posted, refresh thread context and PR evidence: all concerns, including concerns introduced in replies, must be verified fixed in the current PR snapshot. New feedback or changed code requires re-evaluation; leave the thread open when evidence is incomplete. Never expand a narrower selection to resolve a thread with unassessed concerns.
+
+Use the same owned receipt and reply item key:
+
+```bash
+bash "$SKILL_ROOT/scripts/resolve-thread.sh" <owner> <repo> <pr> <root_id> <receipt_file> <reply_item_key> fixed-on-pr --resolve-authorized
+```
+
+The helper checks a posted original-thread reply, its live author/body/target, identity, base/head, paginated thread membership and resolution permission. `fixed-on-pr` and `--resolve-authorized` assert the caller's verified evidence and user authority; they do not establish either. Resolution is a separate receipt entry and cannot erase reply delivery. See `references/github-api-paths.md` and `references/delivery-receipts.md` for API and recovery details.
+
 ## Completion
 
-Return verified scope/coverage, per-finding evidence and verdict, resolution state, each delivery URL/failure and any separately performed push. Retain receipts on failure or incomplete batches. Remove only invocation-owned scratch after all intended items complete and retain the final delivery summary. Never claim an unrun test, unpushed fix, incomplete batch or unresolved LOCKED decision is complete.
+Return verified scope/coverage, per-finding evidence and verdict, fix state, each thread's resolution result (resolved, left open with reason, or unknown), each delivery URL/failure and any separately performed push. Retain receipts on failure or incomplete batches. Remove only invocation-owned scratch after all intended items complete and retain the final delivery summary. Never claim an unrun test, unpushed fix, incomplete batch or unresolved LOCKED decision is complete.
 
 ## Resources
 

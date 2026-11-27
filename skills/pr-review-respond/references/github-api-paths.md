@@ -192,3 +192,19 @@ Each finding lists all of its source keys. Keep `status=pending` while unread/un
 Run `scripts/validate-feedback-coverage.sh` with inventory and ledger paths before the fix/reply approval preview and before posting. It requires complete transport, every source accounted exactly once, all structurally related sources within a linked scope read, consistent source/finding references and evaluated verdicts with evidence. It exits 3 on incomplete coverage. It validates accounting, not whether the semantic judgment is correct; verify claims against code using the playbook.
 
 Report both source counts and unique findings, for example: `6 sources read; 4 unique findings; 4 evaluated; 0 pending; 0 exclusions`. Do not count a duplicate summary or a contextual reply as another defect. Never call 1 of 4 evaluated findings a completed batch. On failure, show exact missing work and retain artifacts; do not treat an API error as an empty review.
+
+## Optional original-thread resolution
+
+GitHub resolves a review **thread** by its GraphQL node ID, rather than a REST comment ID. See the official [resolveReviewThread and PullRequestReviewThread reference](https://docs.github.com/en/graphql/reference/pulls). Issue comments and review summaries have no resolvable thread.
+
+After explicit resolve authority and thread-wide fixed-on-pr verification, call `scripts/resolve-thread.sh` with the original root, posted reply receipt and item key as shown in SKILL.md. The helper paginates `reviewThreads(first:100,after:$endCursor)` with `gh api graphql --paginate`. Each thread's first comment `databaseId` must match the original root exactly. It checks `isResolved` and `viewerCanResolve` and calls:
+
+```graphql
+mutation($thread: ID!) {
+  resolveReviewThread(input: {threadId: $thread}) {
+    thread { id isResolved }
+  }
+}
+```
+
+Do not resolve a fresh inline reply merely because it answers a summary finding. Leave unresolved or unassessed concerns open. The helper's fix-state/authority arguments are caller assertions; semantic verification and user authority stay with the workflow. A permission error or partial GraphQL result is a failure, even when HTTP succeeds.

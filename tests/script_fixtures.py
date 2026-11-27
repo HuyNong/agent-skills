@@ -22,7 +22,7 @@ is_view = args[:2] == ["pr", "view"]
 is_checks = args[:2] == ["pr", "checks"]
 if not args or (args[0] != "api" and not is_view and not is_checks):
     sys.exit("unexpected gh command in unit fixture")
-endpoint = "/fixture/pr/view" if is_view else "/fixture/pr/checks" if is_checks else next(a for a in args if a.startswith(("/", "repos/")))
+endpoint = "/fixture/pr/view" if is_view else "/fixture/pr/checks" if is_checks else next(a for a in args if a == "graphql" or a.startswith(("/", "repos/")))
 method = next((args[args.index(flag) + 1] for flag in ["--method", "-X"] if flag in args), "GET")
 key = method + " /" + endpoint.lstrip("/")
 log = pathlib.Path(environ["TEST_GH_LOG"])

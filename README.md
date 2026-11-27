@@ -8,7 +8,7 @@ This independent project is not affiliated with, sponsored by, or endorsed by Gi
 |---|---|
 | `pr-create` | Create a PR from committed branch changes, with a structured description and an authorized push when needed. |
 | `pr-review-publish` | Publish existing review findings as one summary and anchored inline comments. |
-| `pr-review-respond` | Verify feedback, automatically choose its thread or diff anchor, and draft a reply for posting confirmation. Apply/commit fixes when authorized. |
+| `pr-review-respond` | Verify feedback, automatically choose its thread or diff anchor, and draft a reply for posting confirmation. Apply/commit fixes and resolve verified original threads when explicitly authorized. |
 | `pr-review-verify-fixes` | Verify the complete selected review, assess CI/approval/mergeability read-only, and draft or publish an authorized follow-up. |
 
 Use your normal code-review workflow to produce new findings. Publishing findings, responding to a reviewer and checking later fixes are separate intents.
@@ -70,9 +70,10 @@ Skills use the active `gh` identity. Check that it is the intended account befor
 - **Publish:** “Post these verified findings on PR #12 as a COMMENT review.”
 - **Respond:** “Is this reviewer right? Check the claim and draft a reply. Do not change code yet.”
 - **Authorized fix:** “Apply the agreed fix, run the relevant tests, commit it and reply with the real commit link.”
+- **Reply and resolve:** “Reply in the original thread and resolve it after confirming the fix is on the PR. Leave unresolved concerns open.”
 - **Verify fixes:** “The author pushed new commits to PR #12. Check whether the findings from my prior review are fixed.”
 
-Authorization applies to the requested actions. An evaluation request alone does not authorize edits or GitHub posts. Skills reuse authorization already given in the session; merge, thread resolution and unsolicited approval are outside their workflows. Fix verification always submits COMMENT, never APPROVE or REQUEST_CHANGES.
+Authorization applies to the requested actions. An evaluation request alone does not authorize edits or GitHub posts. Skills reuse authorization already given in the session; merge and unsolicited approval are outside their workflows. Only `pr-review-respond` can resolve an original review thread, with explicit resolution authority after a confirmed reply and verification that every thread concern is fixed on the PR. Reply-only is the default; local/planned fixes and top-level comments cannot trigger resolution. Fix verification always submits COMMENT, never APPROVE or REQUEST_CHANGES.
 
 Respond selects reply placement automatically: the original inline thread first, otherwise the exact relevant diff anchor, with a quoted top-level fallback when no valid anchor exists. New inline and fallback replies quote and link the original claim. The final reply and target are shown for posting confirmation; users do not need to choose the placement separately.
 

@@ -44,3 +44,11 @@ Refresh selected sources and base/head before writing. If the snapshot/source ch
 Atomic same-directory temp + validated JSON + rename prevents partial receipt JSON. A mkdir lock serializes a receipt across processes; inspect its owner before recovering a crash-left lock. Never steal an active lock or delete it merely because it is old. Locks do not serialize separate receipts globally, so remote read-back remains necessary. There is no exactly-once or atomic GitHub transaction guarantee.
 
 Keep artifacts on failure and give their paths. After all intended items complete, retain a final delivery record before removing only invocation-owned scratch. Do not delete comments or resolve threads as cleanup. A rolled-back one-shot helper must not replay an in-flight batch.
+
+## Optional resolution after a posted reply
+
+Resolution has separate authority and runs only through `scripts/resolve-thread.sh` after the original-thread reply item is `posted`. The helper shares the receipt lock and preserves `items`; `.resolutions[reply_item_key]` records `thread_id` and `state`. The posted reply is checked live against its author, original root and approved body hash; identity and evaluated base/head must still match.
+
+Before mutation, resolution state becomes `unknown`. Confirmed success or a subsequent live `isResolved=true` read records `resolved`. If the response is lost, GraphQL reports errors, or an earlier resolved thread is now open, keep the reply URL and report resolution separately. Resume reads the remote thread; if it remains open, stop without replaying either the reply or resolution. Investigate and obtain renewed authority before starting a new attempt; preserve the prior record. An existing resolved thread needs no mutation.
+
+Resolution exit codes: 2 invalid local data/missing authority assertion/unposted reply; 3 unavailable or incomplete thread data; 4 no resolution permission; 5 identity, reply or snapshot mismatch; 6 unconfirmed resolution or prior attempt needing inspection; 7 receipt locked. There is no atomic GitHub transaction between posting a reply and resolving a thread. New comments or commits can arrive between reads and mutation; refresh the selected thread evidence immediately before invoking the helper and report this limit honestly if relevant.

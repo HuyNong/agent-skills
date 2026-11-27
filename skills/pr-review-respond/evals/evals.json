@@ -250,6 +250,90 @@
           "kind": "rubric"
         }
       ]
+    },
+    {
+      "id": "reply-and-resolve-fixed-thread",
+      "split": "train",
+      "prompt": "Reply in the original thread and resolve it. The exact reply and target are approved, all concerns were verified fixed on the current PR, and resolution is explicitly authorized.",
+      "expected_output": "Post the approved reply with a receipt, refresh all thread concerns and snapshot, then resolve only its original thread. Report the reply URL and resolution separately.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "resolution-boundary",
+          "text": "Post the approved reply with a receipt, refresh all thread concerns and snapshot, then resolve only its original thread. Report the reply URL and resolution separately.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "reply-only-no-resolution",
+      "split": "train",
+      "prompt": "Post the approved reply to the original thread. The fix is on the PR.",
+      "expected_output": "Post only the approved reply. Do not resolve without explicit resolution authority.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "resolution-boundary",
+          "text": "Post only the approved reply. Do not resolve without explicit resolution authority.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "resolve-local-fix-refused",
+      "split": "train",
+      "prompt": "Reply and resolve the thread. The fix passes locally but has not been pushed.",
+      "expected_output": "Use Accepted and fixed-local, leave the thread open with a reason, and do not push implicitly.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "resolution-boundary",
+          "text": "Use Accepted and fixed-local, leave the thread open with a reason, and do not push implicitly.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "resolve-reply-unknown",
+      "split": "train",
+      "prompt": "Resume the authorized reply and resolution after the reply request lost its response.",
+      "expected_output": "Reconcile the reply first. If its result is still unknown, do not resolve or blindly repost.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "resolution-boundary",
+          "text": "Reconcile the reply first. If its result is still unknown, do not resolve or blindly repost.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "resolve-incomplete-thread",
+      "split": "train",
+      "prompt": "Reply and resolve the selected finding, but leave the other concern in that same thread for later.",
+      "expected_output": "Leave the thread open because a thread-wide concern remains unresolved; do not silently expand scope.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "resolution-boundary",
+          "text": "Leave the thread open because a thread-wide concern remains unresolved; do not silently expand scope.",
+          "kind": "rubric"
+        }
+      ]
+    },
+    {
+      "id": "resolve-unknown-recovery",
+      "split": "train",
+      "prompt": "The reply is posted but the resolve request lost its response. Continue.",
+      "expected_output": "Read the remote state. Record resolved if confirmed; otherwise report resolution unknown without replaying reply or mutation.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "resolution-boundary",
+          "text": "Read the remote state. Record resolved if confirmed; otherwise report resolution unknown without replaying reply or mutation.",
+          "kind": "rubric"
+        }
+      ]
     }
   ]
 }
